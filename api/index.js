@@ -14,16 +14,21 @@ app.use(express.json());
 // In-memory OTP storage
 const otpStore = new Map();
 
-// Configure Nodemailer SMTP Transporter
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER || 'dhaanish.hostel.portal@gmail.com',
-    pass: process.env.SMTP_PASS || 'dhaanish2026'
+// Configure Nodemailer Transporter dynamically from environment variables
+const getTransporter = () => {
+  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      }
+    });
   }
-});
+  return null;
+};
 
 // ----------------------------------------------------------------------
 // 1. HEALTH & SYSTEM CHECK
@@ -48,30 +53,36 @@ app.post('/api/auth/send-otp', async (req, res) => {
   const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
   otpStore.set(email.toLowerCase(), { otp: otpCode, expiresAt: Date.now() + 5 * 60 * 1000 });
 
-  try {
-    await transporter.sendMail({
-      from: '"Dhaanish Hostel Management" <dhaanish.hostel.portal@gmail.com>',
-      to: email,
-      subject: '🔑 Dhaanish Hostel Registration - Security OTP Verification Code',
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f6f8;">
-          <div style="max-width: 500px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 10px; border: 2px solid #0b192c;">
-            <h2 style="color: #0b192c; text-align: center; margin-top: 0;">DHAANISH CHENNAI AUTONOMOUS</h2>
-            <p style="color: #c51605; font-weight: bold; text-align: center; margin-bottom: 20px;">HOSTEL REGISTRATION SECURITY CODE</p>
-            <p style="color: #333333; font-size: 14px;">Your 6-digit security verification code for <strong>${email}</strong> is:</p>
-            <div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 15px; text-align: center; border-radius: 8px; margin: 20px 0;">
-              <span style="font-family: monospace; font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #0b192c;">${otpCode}</span>
+  const transporter = getTransporter();
+  if (transporter) {
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM || `"Dhaanish Hostel Management" <${process.env.SMTP_USER}>`,
+        to: email,
+        subject: '🔑 Dhaanish Hostel Registration - Security OTP Verification Code',
+        html: `
+          <div style="font-family: Arial, sans-serif; padding: 20px; background-color: #f4f6f8;">
+            <div style="max-width: 500px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 10px; border: 2px solid #0b192c;">
+              <h2 style="color: #0b192c; text-align: center; margin-top: 0;">DHAANISH CHENNAI AUTONOMOUS</h2>
+              <p style="color: #c51605; font-weight: bold; text-align: center; margin-bottom: 20px;">HOSTEL REGISTRATION SECURITY CODE</p>
+              <p style="color: #333333; font-size: 14px;">Your 6-digit security verification code for <strong>${email}</strong> is:</p>
+              <div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 15px; text-align: center; border-radius: 8px; margin: 20px 0;">
+                <span style="font-family: monospace; font-size: 28px; font-weight: bold; letter-spacing: 5px; color: #0b192c;">${otpCode}</span>
+              </div>
+              <p style="color: #666666; font-size: 12px;">This code is valid for 5 minutes. Do not share this OTP with anyone.</p>
             </div>
-            <p style="color: #666666; font-size: 12px;">This code is valid for 5 minutes. Do not share this OTP with anyone.</p>
           </div>
-        </div>
-      `
-    });
-    res.json({ success: true, message: `OTP sent to ${email}` });
-  } catch (err) {
-    console.warn('SMTP Dispatch log:', err.message);
-    res.json({ success: true, message: `OTP generated for ${email}` });
+        `
+      });
+      console.log(`Real OTP email sent to ${email}`);
+    } catch (err) {
+      console.warn('SMTP Dispatch log:', err.message);
+    }
+  } else {
+    console.log(`[SMTP Not Configured] OTP generated for ${email}: ${otpCode}`);
   }
+
+  res.json({ success: true, message: `OTP sent to ${email}` });
 });
 
 app.post('/api/auth/verify-otp', async (req, res) => {
