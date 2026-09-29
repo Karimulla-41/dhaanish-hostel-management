@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   CheckCircle2, 
@@ -36,6 +36,30 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [otpError, setOtpError] = useState('');
+  const [otpSuccessMsg, setOtpSuccessMsg] = useState('');
+  const [resendTimer, setResendTimer] = useState(30);
+
+  useEffect(() => {
+    let timer: any;
+    if (step === 2 && resendTimer > 0) {
+      timer = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [step, resendTimer]);
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0) return;
+    setOtpError('');
+    setOtpSuccessMsg('');
+    const res = await apiSendOtp(email);
+    if (res.otp) {
+      setGeneratedOtp(res.otp);
+    }
+    setOtpSuccessMsg('New 6-digit staff verification code dispatched to your email!');
+    setResendTimer(30);
+  };
 
   // Step 3: Profile Details
   const [fullName, setFullName] = useState('');
@@ -300,6 +324,12 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
               </div>
             )}
 
+            {otpSuccessMsg && (
+              <div className="bg-emerald-50 text-emerald-800 border border-emerald-200 p-2.5 rounded text-xs font-semibold">
+                {otpSuccessMsg}
+              </div>
+            )}
+
             <div className="flex justify-center space-x-2 my-4">
               {otp.map((digit, idx) => (
                 <input
@@ -320,6 +350,23 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
                   className="w-10 h-12 text-center font-bold text-lg border-2 border-navy-700 rounded bg-white focus:bg-navy-50 focus:outline-none"
                 />
               ))}
+            </div>
+
+            <div className="flex items-center justify-center space-x-2">
+              <span className="text-[11px] text-neutral-500">Didn't receive code?</span>
+              {resendTimer > 0 ? (
+                <span className="text-xs font-bold text-navy-800 bg-navy-50 px-2 py-1 rounded border border-navy-200">
+                  Resend OTP in {resendTimer}s
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  className="text-xs font-bold text-crimson-700 hover:text-crimson-800 underline focus:outline-none"
+                >
+                  Resend OTP Now
+                </button>
+              )}
             </div>
 
             <div className="flex space-x-3 pt-2">
