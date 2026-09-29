@@ -32,7 +32,8 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
   const [step1Error, setStep1Error] = useState('');
 
   // Step 2: Email OTP
-  const [otp, setOtp] = useState(['5', '9', '2', '4', '1', '8']);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [generatedOtp, setGeneratedOtp] = useState('');
   const [otpError, setOtpError] = useState('');
 
   // Step 3: Profile Details
@@ -58,13 +59,23 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
       return;
     }
     setStep1Error('');
+
+    // Generate real 6-digit OTP code for staff verification
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(code);
+    setOtp(['', '', '', '', '', '']);
     setStep(2);
   };
 
   const handleStep2Submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (otp.join('').length < 6) {
+    const entered = otp.join('');
+    if (entered.length < 6) {
       setOtpError('Please enter the full 6-digit verification code.');
+      return;
+    }
+    if (entered !== generatedOtp) {
+      setOtpError('Invalid security code. Please check your email inbox and enter the correct code.');
       return;
     }
     setOtpError('');
@@ -276,6 +287,11 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
               <p className="text-xs text-neutral-600 mt-1 max-w-sm mx-auto">
                 Enter the 6-digit security code transmitted to <strong>{email}</strong>.
               </p>
+              {generatedOtp && (
+                <div className="mt-3 bg-amber-50 text-navy-950 border border-amber-300 p-2.5 rounded-lg text-xs font-semibold max-w-sm mx-auto shadow-sm">
+                  📩 Staff Security OTP Code: <span className="font-mono text-sm font-extrabold text-navy-900 bg-amber-200 px-2 py-0.5 rounded border border-amber-400">{generatedOtp}</span>
+                </div>
+              )}
             </div>
 
             {otpError && (

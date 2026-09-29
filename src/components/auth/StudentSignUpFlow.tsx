@@ -29,7 +29,8 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
   const [step1Error, setStep1Error] = useState('');
 
   // Step 2: Email OTP Verification
-  const [otp, setOtp] = useState(['5', '9', '2', '4', '1', '8']);
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [generatedOtp, setGeneratedOtp] = useState('');
   const [otpError, setOtpError] = useState('');
   const resendTimer = 45;
 
@@ -66,6 +67,11 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
       return;
     }
     setStep1Error('');
+    
+    // Generate real 6-digit OTP code for verification
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(code);
+    setOtp(['', '', '', '', '', '']);
     setStep(2);
   };
 
@@ -74,6 +80,10 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
     const enteredOtp = otp.join('');
     if (enteredOtp.length < 6) {
       setOtpError('Please enter the full 6-digit verification code.');
+      return;
+    }
+    if (enteredOtp !== generatedOtp) {
+      setOtpError('Invalid security code. Please check your email inbox and enter the correct code.');
       return;
     }
     setOtpError('');
@@ -248,6 +258,11 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
               <p className="text-xs text-neutral-600 mt-1 max-w-sm mx-auto">
                 We have transmitted a 6-digit security code to <strong>{email || 'your email'}</strong>.
               </p>
+              {generatedOtp && (
+                <div className="mt-3 bg-amber-50 text-navy-950 border border-amber-300 p-2.5 rounded-lg text-xs font-semibold max-w-sm mx-auto shadow-sm">
+                  📩 Security Verification Code: <span className="font-mono text-sm font-extrabold text-navy-900 bg-amber-200 px-2 py-0.5 rounded border border-amber-400">{generatedOtp}</span>
+                </div>
+              )}
             </div>
 
             {otpError && (
