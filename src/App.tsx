@@ -60,16 +60,7 @@ const MainAppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-neutral-900 relative selection:bg-navy-700 selection:text-white overflow-x-hidden">
       
-      {/* 1. Fixed Crisp Sharp Campus Background Image (85% Opacity, No Blur, Full Vivid Details) */}
-      <div 
-        className="fixed inset-0 pointer-events-none z-0 bg-cover bg-center bg-no-repeat opacity-85 filter brightness-100 contrast-105"
-        style={{ backgroundImage: `url('/dhaanish-campus.jpg')` }}
-      />
-      
-      {/* 2. Light Tint Overlay (No Blur, No Graying) */}
-      <div className="fixed inset-0 pointer-events-none z-0 bg-white/20" />
-
-      {/* 3. Active View Container */}
+      {/* Active View Container */}
       <main className="min-h-screen relative z-10">
         {renderActiveView()}
       </main>
