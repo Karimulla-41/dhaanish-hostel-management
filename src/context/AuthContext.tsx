@@ -68,62 +68,7 @@ const defaultFilters: FilterOptions = {
   verificationStatus: '',
 };
 
-const initialOutingRequests: OutingRequest[] = [
-  {
-    id: 'REQ-101',
-    studentId: 'STU-001',
-    studentName: 'Arun Kumar',
-    regNo: '23CSE1045',
-    dept: 'CSE',
-    year: '3rd Year',
-    room: 'A-204',
-    block: 'Block A',
-    type: 'Home Leave',
-    destination: 'Madurai (Family Wedding)',
-    reason: 'Attending elder sister wedding ceremony in Madurai.',
-    outTime: '2026-09-30 08:00 AM',
-    returnTime: '2026-10-03 08:00 PM',
-    parentPhone: '+91 98765 43210',
-    status: 'Pending CC',
-    appliedAt: '2026-09-28 10:30 AM'
-  },
-  {
-    id: 'REQ-102',
-    studentId: 'STU-002',
-    studentName: 'Sneha P',
-    regNo: '23IT1088',
-    dept: 'CSE',
-    year: '3rd Year',
-    room: 'C-102',
-    block: 'Block C',
-    type: 'Local Outing',
-    destination: 'Ritchie Street, Chennai',
-    reason: 'Purchasing project hardware components.',
-    outTime: '2026-09-29 04:00 PM',
-    returnTime: '2026-09-29 08:00 PM',
-    parentPhone: '+91 94441 23456',
-    status: 'Pending CC',
-    appliedAt: '2026-09-28 02:15 PM'
-  },
-  {
-    id: 'REQ-103',
-    studentId: 'STU-003',
-    studentName: 'Vignesh M',
-    regNo: '24ECE204',
-    dept: 'ECE',
-    year: '2nd Year',
-    room: 'B-301',
-    block: 'Block B',
-    type: 'Emergency Pass',
-    destination: 'Apollo Dental Hospital, Tambaram',
-    reason: 'Medical consultation for dental emergency.',
-    outTime: '2026-09-28 09:00 AM',
-    returnTime: '2026-09-30 06:00 PM',
-    parentPhone: '+91 98400 11223',
-    status: 'Pending Warden',
-    appliedAt: '2026-09-28 09:00 AM'
-  }
-];
+const initialOutingRequests: OutingRequest[] = [];
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -136,10 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [blocks] = useState<BlockInfo[]>(initialBlocks);
-  const [registeredStaff, setRegisteredStaff] = useState<RegisteredStaff[]>([
-    { id: 'STF-01', name: 'Dr. Senthil Kumar', email: 'warden@dhaanish.in', role: 'Warden', staffId: 'WRD01', phone: '+91 94433 11223', assignedBlock: 'Block A', designation: 'Chief Warden', joinDate: '2026-01-01' },
-    { id: 'STF-02', name: 'Prof. Ramesh V', email: 'cc.cse@dhaanish.in', role: 'CC', staffId: 'CC01', phone: '+91 94433 44556', assignedDept: 'CSE', designation: 'Senior Class Coordinator', joinDate: '2026-01-01' },
-  ]);
+  const [registeredStaff, setRegisteredStaff] = useState<RegisteredStaff[]>([]);
 
   const [outingRequests, setOutingRequests] = useState<OutingRequest[]>(initialOutingRequests);
   const [monthlyQRToken, setMonthlyQRToken] = useState<string>('DHAANISH-RENEWAL-2026-10-OCTOBER');
