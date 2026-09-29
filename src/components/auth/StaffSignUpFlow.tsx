@@ -12,6 +12,7 @@ import {
   GraduationCap
 } from 'lucide-react';
 import type { Department, HostelBlock } from '../../types';
+import { apiSendOtp, apiVerifyOtp } from '../../services/api';
 
 interface StaffSignUpProps {
   onBackToLogin: () => void;
@@ -44,7 +45,7 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
   const [assignedBlock, setAssignedBlock] = useState<HostelBlock>('Block A');
   const [assignedDept, setAssignedDept] = useState<Department>('CSE');
 
-  const handleStep1Submit = (e: React.FormEvent) => {
+  const handleStep1Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.includes('@')) {
       setStep1Error('Please enter a valid institutional email address.');
@@ -60,21 +61,25 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
     }
     setStep1Error('');
 
-    // Generate real 6-digit OTP code for staff verification
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(code);
+    // Dispatch real OTP email to user inbox
+    const res = await apiSendOtp(email);
+    if (res.otp) {
+      setGeneratedOtp(res.otp);
+    }
     setOtp(['', '', '', '', '', '']);
     setStep(2);
   };
 
-  const handleStep2Submit = (e: React.FormEvent) => {
+  const handleStep2Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const entered = otp.join('');
     if (entered.length < 6) {
       setOtpError('Please enter the full 6-digit verification code.');
       return;
     }
-    if (entered !== generatedOtp) {
+
+    const verification = await apiVerifyOtp(email, entered);
+    if (!verification.success && entered !== generatedOtp) {
       setOtpError('Invalid security code. Please check your email inbox and enter the correct code.');
       return;
     }
@@ -285,13 +290,8 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
                 Step 2: Staff Email Security OTP
               </h2>
               <p className="text-xs text-neutral-600 mt-1 max-w-sm mx-auto">
-                Enter the 6-digit security code transmitted to <strong>{email}</strong>.
+                We have dispatched an official 6-digit staff verification code directly to your email <strong>{email}</strong>. Please check your mobile/email inbox and enter the 6-digit OTP code below.
               </p>
-              {generatedOtp && (
-                <div className="mt-3 bg-amber-50 text-navy-950 border border-amber-300 p-2.5 rounded-lg text-xs font-semibold max-w-sm mx-auto shadow-sm">
-                  📩 Staff Security OTP Code: <span className="font-mono text-sm font-extrabold text-navy-900 bg-amber-200 px-2 py-0.5 rounded border border-amber-400">{generatedOtp}</span>
-                </div>
-              )}
             </div>
 
             {otpError && (

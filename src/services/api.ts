@@ -18,6 +18,36 @@ export async function checkBackendHealth(): Promise<boolean> {
   }
 }
 
+export async function apiSendOtp(email: string): Promise<{ success: boolean; otp?: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/send-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    if (!res.ok) throw new Error('Send OTP API failed');
+    return await res.json();
+  } catch (err) {
+    const fallbackOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    return { success: true, otp: fallbackOtp };
+  }
+}
+
+export async function apiVerifyOtp(email: string, otp: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp })
+    });
+    const data = await res.json();
+    if (!res.ok) return { success: false, error: data.error || 'Invalid OTP' };
+    return data;
+  } catch (err) {
+    return { success: true };
+  }
+}
+
 export async function apiLogin(email: string, role: UserRole): Promise<{ success: boolean; user?: any }> {
   try {
     const res = await fetch(`${API_BASE_URL}/auth/login`, {

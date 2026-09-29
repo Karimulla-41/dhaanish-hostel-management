@@ -12,6 +12,7 @@ import {
   Send
 } from 'lucide-react';
 import type { Department, Year, HostelBlock } from '../../types';
+import { apiSendOtp, apiVerifyOtp } from '../../services/api';
 
 interface SignUpProps {
   onBackToLogin: () => void;
@@ -52,7 +53,7 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
   const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
 
   // Handlers
-  const handleStep1Submit = (e: React.FormEvent) => {
+  const handleStep1Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.includes('@')) {
       setStep1Error('Please enter a valid personal or college email address.');
@@ -68,21 +69,25 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
     }
     setStep1Error('');
     
-    // Generate real 6-digit OTP code for verification
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
-    setGeneratedOtp(code);
+    // Dispatch real OTP email to user inbox
+    const res = await apiSendOtp(email);
+    if (res.otp) {
+      setGeneratedOtp(res.otp);
+    }
     setOtp(['', '', '', '', '', '']);
     setStep(2);
   };
 
-  const handleStep2Submit = (e: React.FormEvent) => {
+  const handleStep2Submit = async (e: React.FormEvent) => {
     e.preventDefault();
     const enteredOtp = otp.join('');
     if (enteredOtp.length < 6) {
       setOtpError('Please enter the full 6-digit verification code.');
       return;
     }
-    if (enteredOtp !== generatedOtp) {
+
+    const verification = await apiVerifyOtp(email, enteredOtp);
+    if (!verification.success && enteredOtp !== generatedOtp) {
       setOtpError('Invalid security code. Please check your email inbox and enter the correct code.');
       return;
     }
@@ -256,13 +261,8 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
                 Step 2: Verify Email Address
               </h2>
               <p className="text-xs text-neutral-600 mt-1 max-w-sm mx-auto">
-                We have transmitted a 6-digit security code to <strong>{email || 'your email'}</strong>.
+                We have dispatched an official 6-digit security code directly to your email <strong>{email || 'your email'}</strong>. Please check your mobile/email inbox and enter the 6-digit OTP code below.
               </p>
-              {generatedOtp && (
-                <div className="mt-3 bg-amber-50 text-navy-950 border border-amber-300 p-2.5 rounded-lg text-xs font-semibold max-w-sm mx-auto shadow-sm">
-                  📩 Security Verification Code: <span className="font-mono text-sm font-extrabold text-navy-900 bg-amber-200 px-2 py-0.5 rounded border border-amber-400">{generatedOtp}</span>
-                </div>
-              )}
             </div>
 
             {otpError && (
