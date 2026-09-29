@@ -1,6 +1,22 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { Student, UserRole, AttendanceStatus, FilterOptions, BlockInfo, RegisteredStaff, OutingRequest } from '../types';
 import { initialStudents, initialBlocks } from '../data/mockData';
+import {
+  apiLogin,
+  apiRegisterStudent,
+  apiRegisterStaff,
+  apiFetchStudents,
+  apiApproveStudentVerification,
+  apiUpdateAttendanceStatus,
+  apiFetchOutingRequests,
+  apiSubmitOutingRequest,
+  apiCCApproveOuting,
+  apiCCRejectOuting,
+  apiWardenApproveOuting,
+  apiWardenRejectOuting,
+  apiFetchLatestMonthlyQR,
+  apiGenerateMonthlyQR
+} from '../services/api';
 
 interface AuthContextType {
   role: UserRole;
@@ -135,6 +151,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isMobileFrame, setIsMobileFrame] = useState<boolean>(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false);
 
+  // Initial Backend API Data Fetch & Synchronization
+  useEffect(() => {
+    async function loadDataFromApi() {
+      const apiStudents = await apiFetchStudents();
+      if (apiStudents && apiStudents.length > 0) {
+        setStudents(apiStudents);
+      }
+      const apiRequests = await apiFetchOutingRequests();
+      if (apiRequests && apiRequests.length > 0) {
+        setOutingRequests(apiRequests);
+      }
+      const latestToken = await apiFetchLatestMonthlyQR();
+      if (latestToken) {
+        setMonthlyQRToken(latestToken);
+      }
+    }
+    loadDataFromApi();
+  }, []);
+
   const login = (email: string, overrideRole?: UserRole) => {
     if (overrideRole) {
       setRole(overrideRole);
@@ -151,6 +186,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         else setRole('Student');
       }
     }
+    apiLogin(email, overrideRole || 'Student').catch(() => {});
     setIsAuthenticated(true);
     setActiveView('dashboard');
   };
@@ -175,6 +211,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setRegisteredStaff(prev => [newStaff, ...prev]);
+    apiRegisterStaff(newStaff).catch(() => {});
     return newStaff;
   };
 
@@ -214,6 +251,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setStudents(prev => [newStudent, ...prev]);
+    apiRegisterStudent(newStudent).catch(() => {});
     return newStudent;
   };
 
@@ -244,6 +282,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (selectedStudent && selectedStudent.id === studentId) {
       setSelectedStudent(prev => prev ? { ...prev, verificationStatus: 'Active' } : null);
     }
+    apiApproveStudentVerification(studentId).catch(() => {});
   };
 
   const updateStudentAttendanceStatus = (studentId: string, status: AttendanceStatus) => {
@@ -273,6 +312,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (selectedStudent && selectedStudent.id === studentId) {
       setSelectedStudent(prev => prev ? { ...prev, status } : null);
     }
+    apiUpdateAttendanceStatus(studentId, status).catch(() => {});
   };
 
   // Outing Workflow Functions
@@ -284,15 +324,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       appliedAt: new Date().toLocaleString()
     };
     setOutingRequests(prev => [newReq, ...prev]);
+    apiSubmitOutingRequest(requestData).catch(() => {});
     return newReq;
   };
 
   const ccApproveOutingRequest = (requestId: string) => {
     setOutingRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'Pending Warden' } : r));
+    apiCCApproveOuting(requestId).catch(() => {});
   };
 
   const ccRejectOutingRequest = (requestId: string) => {
     setOutingRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'CC Rejected' } : r));
+    apiCCRejectOuting(requestId).catch(() => {});
   };
 
   const wardenApproveOutingRequest = (requestId: string) => {
@@ -304,14 +347,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return r;
     }));
+    apiWardenApproveOuting(requestId).catch(() => {});
   };
 
   const wardenRejectOutingRequest = (requestId: string) => {
     setOutingRequests(prev => prev.map(r => r.id === requestId ? { ...r, status: 'Warden Rejected' } : r));
+    apiWardenRejectOuting(requestId).catch(() => {});
   };
 
   const updateMonthlyQRToken = (newToken: string) => {
     setMonthlyQRToken(newToken);
+    apiGenerateMonthlyQR(newToken).catch(() => {});
   };
 
   const resetFilters = () => {
