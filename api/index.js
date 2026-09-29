@@ -67,10 +67,10 @@ app.post('/api/auth/send-otp', async (req, res) => {
         </div>
       `
     });
-    res.json({ success: true, message: `OTP sent to ${email}`, otp: otpCode });
+    res.json({ success: true, message: `OTP sent to ${email}` });
   } catch (err) {
     console.warn('SMTP Dispatch log:', err.message);
-    res.json({ success: true, otp: otpCode });
+    res.json({ success: true, message: `OTP generated for ${email}` });
   }
 });
 
