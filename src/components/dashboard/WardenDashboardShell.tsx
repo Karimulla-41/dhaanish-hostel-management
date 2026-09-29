@@ -38,11 +38,7 @@ export const WardenDashboardShell: React.FC = () => {
   const [selectedMonth, setSelectedMonth] = useState('OCTOBER 2026');
 
   // Complaints Data
-  const [complaints, setComplaints] = useState([
-    { id: 'CMP-101', studentName: 'Arun Kumar', room: 'A-204', category: 'Electrical / Fan', desc: 'Ceiling fan making squeaking noise at high speed.', status: 'Pending', date: 'Today, 10:15 AM' },
-    { id: 'CMP-102', studentName: 'Kaviya R', room: 'C-108', category: 'Plumbing / Hot Water', desc: 'Hot water pressure low in bathroom 2.', status: 'Resolved', date: 'Yesterday, 04:30 PM' },
-    { id: 'CMP-103', studentName: 'Mohammed Saif', room: 'B-312', category: 'Wi-Fi / Network', desc: 'Wi-Fi access point weak signal in corner bed.', status: 'Pending', date: '26 Sep 2026' },
-  ]);
+  const [complaints, setComplaints] = useState<any[]>([]);
 
   const pendingRegistrations = students.filter(s => s.verificationStatus === 'Pending Verification');
   const pendingOutings = outingRequests.filter(r => r.status === 'Pending Warden');

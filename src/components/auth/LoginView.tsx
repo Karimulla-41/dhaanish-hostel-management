@@ -10,8 +10,8 @@ interface LoginViewProps {
 
 export const LoginView: React.FC<LoginViewProps> = ({ onGoToSignUp, onGoToStaffSignUp }) => {
   const { login } = useAuth();
-  const [email, setEmail] = useState('arun.k@dhaanish.in');
-  const [password, setPassword] = useState('dhaanish2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [selectedRole, setSelectedRole] = useState<UserRole>('Student');
   const [showSecretMenu, setShowSecretMenu] = useState(false);
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -80,9 +80,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onGoToSignUp, onGoToStaffS
                     key={r}
                     onClick={() => {
                       setSelectedRole(r);
-                      if (r === 'Warden') setEmail('warden@dhaanish.in');
-                      else if (r === 'CC') setEmail('cc.cse@dhaanish.in');
-                      else setEmail('admin@dhaanish.in');
                       setShowSecretMenu(false);
                     }}
                     className={`py-1.5 rounded font-bold transition ${

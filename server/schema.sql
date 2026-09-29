@@ -3,9 +3,6 @@
 -- Database Schema for MySQL (Production Release v2.4.0)
 -- ====================================================================
 
-CREATE DATABASE IF NOT EXISTS dhaanish_hostel;
-USE dhaanish_hostel;
-
 -- 1. USERS & AUTHENTICATION TABLE
 CREATE TABLE IF NOT EXISTS users (
   id INT AUTO_INCREMENT PRIMARY KEY,

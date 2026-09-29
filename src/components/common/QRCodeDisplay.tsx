@@ -206,8 +206,13 @@ export const QRCodeDisplay: React.FC<QRCodeDisplayProps> = ({
         <p className="text-[11px] text-neutral-500">{subtitle}</p>
       </div>
 
-      <div className="p-3 bg-white rounded-xl border border-neutral-300 shadow-inner flex justify-center">
-        <canvas ref={canvasRef} className="rounded" />
+      <div className="p-3 bg-white rounded-xl border border-neutral-300 shadow-inner flex flex-col items-center justify-center">
+        <img
+          src={`https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(value)}`}
+          alt="Official Scannable Hostel Pass QR Code"
+          className="w-56 h-56 object-contain rounded"
+        />
+        <canvas ref={canvasRef} className="hidden" />
       </div>
 
       <div className="bg-neutral-100 px-3 py-1.5 rounded-md font-mono text-[10px] text-neutral-600 font-semibold text-center w-full truncate">

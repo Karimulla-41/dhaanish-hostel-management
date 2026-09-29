@@ -37,22 +37,15 @@ export const AdminDashboard: React.FC = () => {
   const { students, logout } = useAuth();
 
   // Warden Management State
-  const [wardenList, setWardenList] = useState<WardenRecord[]>([
-    { block: 'Block A', warden: 'Dr. Senthil Kumar', designation: 'Chief Warden (Senior Boys)', phone: '+91 94433 11223', email: 'senthil.warden@dhaanish.in' },
-    { block: 'Block B', warden: 'Prof. Ramesh V', designation: 'Warden (Junior Boys Wing)', phone: '+91 94433 44556', email: 'ramesh.warden@dhaanish.in' },
-    { block: 'Block C', warden: 'Dr. Priyadarshini M', designation: 'Senior Warden (Girls Block 1)', phone: '+91 98400 77889', email: 'priya.warden@dhaanish.in' },
-    { block: 'Block D', warden: 'Prof. Malathi K', designation: 'Warden (Girls Block 2)', phone: '+91 98400 22334', email: 'malathi.warden@dhaanish.in' },
-    { block: 'Block E', warden: 'Dr. Abdul Rahman', designation: 'International Wing Director', phone: '+91 91234 88990', email: 'abdul.warden@dhaanish.in' },
-    { block: 'Block F', warden: 'Campus Estate Manager', designation: 'Under Construction Overseer', phone: '+91 90000 00000', email: 'estate@dhaanish.in' },
-  ]);
+  const [wardenList, setWardenList] = useState<WardenRecord[]>([]);
 
   // Block Capacity & Status State
   const [blockList, setBlockList] = useState<EditableBlock[]>([
-    { name: 'Block A', status: 'Active', capacity: 120, occupied: 112, floors: 4, description: 'Senior Boys Residence - Engineering Departments' },
-    { name: 'Block B', status: 'Active', capacity: 140, occupied: 128, floors: 4, description: 'Junior Boys Residence - First & Second Year' },
-    { name: 'Block C', status: 'Active', capacity: 100, occupied: 94, floors: 3, description: 'Girls Residence Block 1 - All Departments' },
-    { name: 'Block D', status: 'Active', capacity: 120, occupied: 105, floors: 4, description: 'Girls Residence Block 2 - Post Graduates & Final Year' },
-    { name: 'Block E', status: 'Active', capacity: 80, occupied: 68, floors: 3, description: 'International & Research Scholar Wing' },
+    { name: 'Block A', status: 'Active', capacity: 120, occupied: 0, floors: 4, description: 'Senior Boys Residence - Engineering Departments' },
+    { name: 'Block B', status: 'Active', capacity: 140, occupied: 0, floors: 4, description: 'Junior Boys Residence - First & Second Year' },
+    { name: 'Block C', status: 'Active', capacity: 100, occupied: 0, floors: 3, description: 'Girls Residence Block 1 - All Departments' },
+    { name: 'Block D', status: 'Active', capacity: 120, occupied: 0, floors: 4, description: 'Girls Residence Block 2 - Post Graduates & Final Year' },
+    { name: 'Block E', status: 'Active', capacity: 80, occupied: 0, floors: 3, description: 'International & Research Scholar Wing' },
     { name: 'Block F', status: 'Under Construction', capacity: 160, occupied: 0, floors: 5, description: 'New Executive Hostel Complex (Target Completion: Q2 2027)' },
   ]);
 
