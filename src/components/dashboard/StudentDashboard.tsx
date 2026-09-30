@@ -3,7 +3,6 @@ import { useAuth } from '../../context/AuthContext';
 import { 
   Clock, 
   CheckCircle2, 
-  QrCode, 
   Send, 
   ShieldCheck, 
   Wrench,
@@ -13,7 +12,8 @@ import {
   AlertCircle,
   Bell,
   Trash2,
-  CheckCheck
+  CheckCheck,
+  Lock
 } from 'lucide-react';
 import { QRScannerModal } from '../common/QRScannerModal';
 import { UserProfileModal } from '../common/UserProfileModal';
@@ -394,13 +394,36 @@ export const StudentDashboard: React.FC = () => {
               <span>Scan Warden Monthly Renewal QR</span>
             </button>
 
-            <button
-              onClick={() => setActiveStudentModule('idcard')}
-              className="text-xs text-navy-700 hover:underline font-bold inline-flex items-center space-x-1"
-            >
-              <QrCode className="w-4 h-4" />
-              <span>View My Digital ID Badge</span>
-            </button>
+            {activeOuting && activeOuting.status === 'Approved' ? (
+              <button
+                onClick={() => setActiveStudentModule('idcard')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2.5 rounded-xl shadow-lg border border-emerald-400 text-xs flex items-center space-x-2 transition animate-pulse"
+              >
+                <CheckCircle2 className="w-4 h-4 text-amber-300" />
+                <span>🎟️ View Authorized Outing Gate Badge</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  let msg = '🔒 Digital Gate Pass Badge is Locked!\n\n';
+                  if (!activeOuting) {
+                    msg += 'You have not requested an Outing Pass.\n\nPlease click "1. Request Outing / Leave" above to apply. Once approved by BOTH your Class Coordinator (CC) and Chief Warden, your Gate Pass Badge will activate.';
+                  } else if (activeOuting.status === 'Pending CC') {
+                    msg += 'Status: Step 1 (Pending CC Approval)\n\nYour outing request is currently pending recommendation from your Class Coordinator.';
+                  } else if (activeOuting.status === 'Pending Warden') {
+                    msg += 'Status: Step 2 (Pending Warden Approval)\n\nYour Class Coordinator has recommended your pass! It is now awaiting final authorization from the Chief Warden.';
+                  } else if (activeOuting.status.includes('Rejected')) {
+                    msg += `Status: ${activeOuting.status}\n\nYour pass request was declined. Please re-apply with valid details.`;
+                  }
+                  alert(msg);
+                }}
+                className="bg-neutral-100 hover:bg-neutral-200 text-neutral-600 font-bold px-4 py-2.5 rounded-xl border border-neutral-300 text-xs flex items-center space-x-2 transition cursor-pointer"
+                title="Badge locks until CC and Warden approve outing request"
+              >
+                <Lock className="w-4 h-4 text-amber-600" />
+                <span>🔒 Gate Pass Badge Locked (Approval Required)</span>
+              </button>
+            )}
           </div>
 
         </div>
@@ -553,7 +576,7 @@ export const StudentDashboard: React.FC = () => {
 
       {/* MODULE 3: DIGITAL ID CARD VIEW */}
       {activeStudentModule === 'idcard' && (
-        <div className="max-w-sm mx-auto w-full my-auto space-y-4 py-6">
+        <div className="max-w-md mx-auto w-full my-auto space-y-4 py-6">
           <div className="flex items-center justify-between pb-3 border-b border-neutral-200">
             <button
               onClick={() => setActiveStudentModule(null)}
@@ -562,50 +585,103 @@ export const StudentDashboard: React.FC = () => {
               <ArrowLeft className="w-4 h-4 text-amber-300" />
               <span>Back to Options</span>
             </button>
-            <h2 className="text-base font-bold text-navy-900">Digital Resident Pass</h2>
+            <h2 className="text-base font-bold text-navy-900">Digital Gate Pass Badge</h2>
           </div>
 
-          <div className="bg-gradient-to-br from-navy-800 via-navy-700 to-navy-900 text-white rounded-xl p-5 shadow-2xl space-y-3 relative overflow-hidden border-2 border-navy-600">
-            <div className="flex justify-between items-start">
-              <div className="flex items-center space-x-2">
-                <img src="/dhaanish-logo.png" alt="Dhaanish Logo" className="h-7 w-auto bg-white p-0.5 rounded" />
+          <div className="bg-gradient-to-br from-navy-900 via-navy-800 to-navy-950 text-white rounded-2xl p-6 shadow-2xl space-y-4 relative overflow-hidden border-2 border-amber-400/80">
+            
+            {/* Header Shield */}
+            <div className="flex justify-between items-start pb-3 border-b border-white/20">
+              <div className="flex items-center space-x-2.5">
+                <img src="/dhaanish-logo.png" alt="Dhaanish Logo" className="h-8 w-auto bg-white p-1 rounded-md shadow" />
                 <div>
-                  <p className="text-[10px] font-bold tracking-wider uppercase text-neutral-200">DHAANISH CHENNAI</p>
-                  <p className="text-[9px] text-red-300 font-semibold">AUTONOMOUS | NAAC A+</p>
+                  <p className="text-xs font-bold tracking-wider uppercase text-white">DHAANISH CHENNAI</p>
+                  <p className="text-[10px] text-red-300 font-bold tracking-tight">AUTONOMOUS | NAAC A+</p>
                 </div>
               </div>
-              <span className="font-mono text-[10px] text-amber-300 font-bold bg-navy-900/80 px-2 py-0.5 rounded border border-navy-600">
-                {student.hostelId}
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-3 pt-2">
-              <img src={currentProfile.photoUrl || student.photoUrl} alt={currentProfile.name || student.name} className="w-16 h-16 rounded-md object-cover border border-white/40 shadow" />
-              <div className="text-[11px] space-y-0.5 text-neutral-200">
-                <p className="font-bold text-white text-sm">{currentProfile.name || student.name}</p>
-                <p className="font-mono text-neutral-300">{student.regNo}</p>
-                <p>{student.department} • {student.year}</p>
-                <p className="text-amber-300 font-semibold">{currentProfile.block || student.block} • Room {currentProfile.room || student.room}</p>
+              <div className="text-right">
+                <span className="font-mono text-xs text-amber-300 font-bold bg-navy-950 px-2.5 py-1 rounded border border-amber-400/50 block">
+                  {student.hostelId}
+                </span>
+                <span className="text-[9px] text-emerald-400 font-bold uppercase mt-1 block">
+                  ● DUAL APPROVED
+                </span>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-navy-600/70 flex items-center justify-between text-[10px]">
+            {/* Resident Info & Photo */}
+            <div className="flex items-center space-x-4 py-1">
+              <img src={currentProfile.photoUrl || student.photoUrl} alt={currentProfile.name || student.name} className="w-20 h-20 rounded-xl object-cover border-2 border-amber-300 shadow-md" />
+              <div className="text-xs space-y-1 text-neutral-200">
+                <p className="font-bold text-white text-base leading-tight">{currentProfile.name || student.name}</p>
+                <p className="font-mono text-amber-300 font-semibold">{student.regNo}</p>
+                <p className="text-neutral-300">{student.department} • {student.year}</p>
+                <p className="text-neutral-300 font-semibold">{currentProfile.block || student.block} • Room {currentProfile.room || student.room}</p>
+              </div>
+            </div>
+
+            {/* Approved Outing Pass Details Card */}
+            {activeOuting && (
+              <div className="bg-white/10 backdrop-blur-md rounded-xl p-3.5 border border-white/20 text-xs space-y-2">
+                <div className="flex justify-between items-center pb-2 border-b border-white/10">
+                  <span className="font-bold text-amber-300 uppercase tracking-wider text-[11px] flex items-center space-x-1">
+                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{activeOuting.type}</span>
+                  </span>
+                  <span className="bg-emerald-600 text-white font-bold text-[10px] px-2.5 py-0.5 rounded-full shadow">
+                    ● GATE CLEARANCE READY
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                  <div>
+                    <span className="text-neutral-400 block text-[10px] uppercase">Departure Time</span>
+                    <span className="font-bold text-white">{activeOuting.outTime}</span>
+                  </div>
+                  <div>
+                    <span className="text-neutral-400 block text-[10px] uppercase">Scheduled Return</span>
+                    <span className="font-bold text-amber-300">{activeOuting.returnTime}</span>
+                  </div>
+                </div>
+
+                <div className="text-[11px] pt-1">
+                  <span className="text-neutral-400 block text-[10px] uppercase">Approved Destination</span>
+                  <span className="font-semibold text-neutral-100">{activeOuting.destination} ({activeOuting.reason})</span>
+                </div>
+              </div>
+            )}
+
+            {/* Approval Verification Seals */}
+            <div className="bg-emerald-950/70 border border-emerald-500/50 p-2.5 rounded-xl text-[10px] text-emerald-200 space-y-1">
+              <div className="flex items-center space-x-1.5 font-bold text-emerald-300">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>Dual Approval Stamps Verified:</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1 text-[9px] pt-0.5 text-emerald-100">
+                <span>✅ Class Coordinator (CC): Approved</span>
+                <span>✅ Chief Warden Office: Authorized</span>
+              </div>
+            </div>
+
+            {/* Footer Seal */}
+            <div className="pt-2 border-t border-white/20 flex items-center justify-between text-[10px]">
               <div className="flex items-center space-x-1.5 text-amber-300 font-semibold">
                 <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Gate Outing Authorization Badge</span>
+                <span>Security Clearance Badge</span>
               </div>
-              <div className="text-right space-y-0.5">
+              <div>
                 {monthlyPassVerified ? (
                   <span className="bg-emerald-500 text-white font-bold px-2 py-0.5 rounded text-[9px] shadow">
-                    ● GATE CLEARANCE VERIFIED
+                    ● QR GATE CLEARANCE ACTIVE
                   </span>
                 ) : (
-                  <span className="text-neutral-300 text-[10px]">
-                    Scan Gate QR Code to Authorize Exit
+                  <span className="text-amber-300 font-bold text-[10px]">
+                    Present to Security Gate Scanner
                   </span>
                 )}
               </div>
             </div>
+
           </div>
         </div>
       )}
