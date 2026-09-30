@@ -189,9 +189,21 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
               <div className="absolute bottom-4 left-4 w-8 h-8 border-b-4 border-l-4 border-amber-400 rounded-bl z-10" />
               <div className="absolute bottom-4 right-4 w-8 h-8 border-b-4 border-r-4 border-amber-400 rounded-br z-10" />
 
-              {/* Scanning Laser Line */}
+              {/* Scanning Laser Line with Continuous Up-Down Motion */}
               {!scanResult && !cameraError && (
-                <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-red-500 via-amber-300 to-red-500 shadow-[0_0_15px_#f59e0b] animate-pulse top-1/2 z-10" />
+                <>
+                  <style>{`
+                    @keyframes laserSweep {
+                      0% { top: 8%; }
+                      50% { top: 88%; }
+                      100% { top: 8%; }
+                    }
+                    .animate-laser-sweep {
+                      animation: laserSweep 2.2s ease-in-out infinite;
+                    }
+                  `}</style>
+                  <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-emerald-400 via-amber-300 to-emerald-400 shadow-[0_0_20px_#34d399] z-10 animate-laser-sweep pointer-events-none" />
+                </>
               )}
 
               {/* Hidden Canvas for Frame Decoding */}
