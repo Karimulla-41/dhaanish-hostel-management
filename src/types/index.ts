@@ -130,3 +130,12 @@ export interface UserProfile {
   designation?: string;
 }
 
+export interface UserAccount {
+  email: string;
+  password: string;
+  role: UserRole;
+  name: string;
+  createdAt: string;
+}
+
+

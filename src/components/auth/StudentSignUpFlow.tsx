@@ -133,6 +133,7 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
       block: hostelBlock,
       room: roomNumber,
       photoUrl,
+      password,
     });
 
     setStep(4);

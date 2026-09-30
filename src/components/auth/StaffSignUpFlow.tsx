@@ -127,6 +127,7 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
         phone: mobile,
         assignedBlock,
         designation: designation || `${assignedBlock} Block Warden`,
+        password,
       });
     } else {
       registerStaff({
@@ -137,6 +138,7 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
         phone: mobile,
         assignedDept,
         designation: designation || `${assignedDept} Class Coordinator`,
+        password,
       });
     }
 

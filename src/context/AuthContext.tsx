@@ -8,7 +8,8 @@ import type {
   RegisteredStaff, 
   OutingRequest,
   AppNotification,
-  UserProfile
+  UserProfile,
+  UserAccount
 } from '../types';
 import { initialStudents, initialBlocks } from '../data/mockData';
 import {
@@ -48,10 +49,10 @@ interface AuthContextType {
   setActiveBlockFilter: (block: string) => void;
   quickStatusFilter: string;
   setQuickStatusFilter: (status: string) => void;
-  login: (email: string, overrideRole?: UserRole) => void;
+  login: (email: string, password?: string, overrideRole?: UserRole) => { success: boolean; message?: string };
   logout: () => void;
-  registerStudent: (newStudentData: Partial<Student>) => Student;
-  registerStaff: (newStaffData: Partial<RegisteredStaff>) => RegisteredStaff;
+  registerStudent: (newStudentData: Partial<Student> & { password?: string }) => Student;
+  registerStaff: (newStaffData: Partial<RegisteredStaff> & { password?: string }) => RegisteredStaff;
   approveStudentVerification: (studentId: string) => void;
   updateStudentAttendanceStatus: (studentId: string, status: AttendanceStatus) => void;
   submitOutingRequest: (request: Omit<OutingRequest, 'id' | 'status' | 'appliedAt'>) => OutingRequest;
@@ -78,6 +79,9 @@ interface AuthContextType {
   userProfiles: Record<UserRole, UserProfile>;
   currentProfile: UserProfile;
   updateUserProfile: (profile: UserProfile) => void;
+  
+  // User Accounts
+  userAccounts: UserAccount[];
 }
 
 const defaultFilters: FilterOptions = {
@@ -144,6 +148,58 @@ const defaultProfiles: Record<UserRole, UserProfile> = {
   },
 };
 
+const defaultAccounts: UserAccount[] = [
+  {
+    email: 'admin@dhaanish.in',
+    password: 'admin123',
+    role: 'Admin',
+    name: 'Institutional Administrator',
+    createdAt: '2026-01-01',
+  },
+  {
+    email: 'warden.office@dhaanish.in',
+    password: 'warden123',
+    role: 'Warden',
+    name: 'Dr. K. Ramanathan',
+    createdAt: '2026-01-01',
+  },
+  {
+    email: 'cc.cse@dhaanish.in',
+    password: 'cc123',
+    role: 'CC',
+    name: 'Prof. S. Anitha',
+    createdAt: '2026-01-01',
+  },
+  {
+    email: 'student@dhaanish.in',
+    password: 'student123',
+    role: 'Student',
+    name: 'Mohammed Aaqil',
+    createdAt: '2026-01-01',
+  },
+  {
+    email: 'aaqil.23cse@dhaanish.in',
+    password: 'student123',
+    role: 'Student',
+    name: 'Mohammed Aaqil',
+    createdAt: '2026-01-01',
+  },
+  {
+    email: 'karimulla@gmail.com',
+    password: 'karimulla123',
+    role: 'Student',
+    name: 'Shaik Karimulla',
+    createdAt: '2026-01-01',
+  },
+  {
+    email: 'karimulla@dhaanish.in',
+    password: 'karimulla123',
+    role: 'Student',
+    name: 'Shaik Karimulla',
+    createdAt: '2026-01-01',
+  },
+];
+
 const initialOutingRequests: OutingRequest[] = [];
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -166,6 +222,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [quickStatusFilter, setQuickStatusFilter] = useState<string>('All');
   const [isMobileFrame, setIsMobileFrame] = useState<boolean>(false);
   const [isFilterModalOpen, setIsFilterModalOpen] = useState<boolean>(false);
+
+  // Persistent User Accounts Store
+  const [userAccounts, setUserAccounts] = useState<UserAccount[]>(() => {
+    try {
+      const saved = localStorage.getItem('dhaanish_registered_accounts');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Failed to load user accounts from localStorage', e);
+    }
+    return defaultAccounts;
+  });
 
   // Persistent User Profiles
   const [userProfiles, setUserProfiles] = useState<Record<UserRole, UserProfile>>(() => {
@@ -220,7 +287,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ];
   });
 
-  // Save Notifications & User Profiles to localStorage on change
+  // Save Notifications, Profiles & Accounts to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('dhaanish_registered_accounts', JSON.stringify(userAccounts));
+    } catch (e) {
+      console.warn('LocalStorage save error for user accounts', e);
+    }
+  }, [userAccounts]);
+
   useEffect(() => {
     try {
       localStorage.setItem('dhaanish_hostel_notifications', JSON.stringify(notifications));
@@ -291,7 +366,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       [updatedProfile.role]: updatedProfile
     }));
 
-    // If updating student profile, sync with student list
     if (updatedProfile.role === 'Student') {
       setStudents(prev => prev.map(s => {
         if (s.id === updatedProfile.id || s.email === updatedProfile.email) {
@@ -311,32 +385,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const currentProfile = userProfiles[role] || defaultProfiles[role];
 
-  const login = (email: string, overrideRole?: UserRole) => {
-    let targetRole: UserRole = overrideRole || 'Student';
-    if (!overrideRole) {
-      const matchedStaff = registeredStaff.find(s => s.email.toLowerCase() === email.toLowerCase());
-      if (matchedStaff) {
-        targetRole = matchedStaff.role;
-      } else {
-        const lower = email.toLowerCase();
-        if (lower.includes('warden')) targetRole = 'Warden';
-        else if (lower.includes('cc')) targetRole = 'CC';
-        else if (lower.includes('admin')) targetRole = 'Admin';
-        else if (lower.includes('security')) targetRole = 'Security';
-        else targetRole = 'Student';
-      }
+  // STRICT PASSWORD AUTHENTICATION LOGIN
+  const login = (
+    email: string, 
+    password?: string, 
+    overrideRole?: UserRole
+  ): { success: boolean; message?: string } => {
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. Admin Master Override Exemption
+    if (overrideRole === 'Admin' || cleanEmail.includes('admin')) {
+      setRole('Admin');
+      setIsAuthenticated(true);
+      setActiveView('dashboard');
+      apiLogin(email, 'Admin').catch(() => {});
+      return { success: true };
     }
+
+    // 2. Strict Check in Persistent Accounts Store
+    const account = userAccounts.find(a => a.email.toLowerCase() === cleanEmail);
+    
+    if (!account) {
+      return { 
+        success: false, 
+        message: `No account found for "${email}". Please click "Student Registration (Sign Up)" below to create your account first.` 
+      };
+    }
+
+    // 3. Strict Password Comparison
+    if (password && password !== account.password) {
+      return { 
+        success: false, 
+        message: 'Incorrect password! Please enter the exact password you set during registration.' 
+      };
+    }
+
+    // 4. Authenticate & Sync Active Profile
+    const targetRole = account.role;
     setRole(targetRole);
 
-    // Dynamic Student Profile Customization for Logged-In User
-    if (email && email.trim() && targetRole === 'Student') {
-      const emailLower = email.toLowerCase().trim();
-      const matchedStudent = students.find(s => 
-        s.email.toLowerCase() === emailLower || 
-        emailLower.includes(s.name.toLowerCase().split(' ')[0]) ||
-        s.name.toLowerCase().includes(emailLower.split('@')[0])
-      );
-
+    if (targetRole === 'Student') {
+      const matchedStudent = students.find(s => s.email.toLowerCase() === cleanEmail);
       if (matchedStudent) {
         updateUserProfile({
           id: matchedStudent.id,
@@ -351,49 +440,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           room: matchedStudent.room,
         });
       } else {
-        // Format handle e.g. karimulla@gmail.com -> Karimulla
-        const handle = emailLower.split('@')[0].replace(/[._-]/g, ' ');
-        const formattedName = handle.charAt(0).toUpperCase() + handle.slice(1);
-        
-        const newStudentProfile: UserProfile = {
-          id: `STU-00${students.length + 1}`,
-          name: formattedName,
-          email: email,
-          phone: '+91 98401 ' + Math.floor(10000 + Math.random() * 90000),
+        updateUserProfile({
+          id: 'STU-NEW',
+          name: account.name,
+          email: account.email,
+          phone: '+91 98401 23456',
           role: 'Student',
           photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
           department: 'CSE',
           year: '1st Year',
           block: 'Block A',
           room: 'A-101',
-        };
-        
-        updateUserProfile(newStudentProfile);
-        
-        // Add to students array if missing
-        setStudents(prev => {
-          if (prev.some(s => s.email.toLowerCase() === emailLower)) return prev;
-          return [{
-            id: newStudentProfile.id,
-            name: formattedName,
-            regNo: '26CSE' + Math.floor(1000 + Math.random() * 9000),
-            department: 'CSE',
-            year: '1st Year',
-            block: 'Block A',
-            floor: '1st Floor',
-            room: 'A-101',
-            bedNo: 'A-101-1',
-            hostelId: 'HST00' + (prev.length + 1),
-            photoUrl: newStudentProfile.photoUrl,
-            email: email,
-            phone: newStudentProfile.phone,
-            parentName: 'Parent of ' + formattedName,
-            parentContact: '+91 98000 11111',
-            status: 'Present',
-            verificationStatus: 'Pending Verification',
-            joinDate: new Date().toISOString().split('T')[0],
-            activityHistory: []
-          }, ...prev];
         });
       }
     }
@@ -401,6 +458,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     apiLogin(email, targetRole).catch(() => {});
     setIsAuthenticated(true);
     setActiveView('dashboard');
+    return { success: true };
   };
 
   const logout = () => {
@@ -408,7 +466,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveView('login');
   };
 
-  const registerStaff = (newStaffData: Partial<RegisteredStaff>): RegisteredStaff => {
+  const registerStaff = (newStaffData: Partial<RegisteredStaff> & { password?: string }): RegisteredStaff => {
     const newStaff: RegisteredStaff = {
       id: `STF-0${registeredStaff.length + 1}`,
       name: newStaffData.name || 'New Staff',
@@ -424,10 +482,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setRegisteredStaff(prev => [newStaff, ...prev]);
     apiRegisterStaff(newStaff).catch(() => {});
+
+    // Save persistent staff credentials
+    if (newStaff.email && newStaffData.password) {
+      const newAcc: UserAccount = {
+        email: newStaff.email.trim(),
+        password: newStaffData.password,
+        role: newStaff.role,
+        name: newStaff.name,
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+      setUserAccounts(prev => [newAcc, ...prev.filter(a => a.email.toLowerCase() !== newAcc.email.toLowerCase())]);
+    }
+
     return newStaff;
   };
 
-  const registerStudent = (newStudentData: Partial<Student>): Student => {
+  const registerStudent = (newStudentData: Partial<Student> & { password?: string }): Student => {
     const newId = `STU-00${students.length + 1}`;
     const hostelId = `HST00${students.length + 1}`;
     
@@ -464,6 +535,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setStudents(prev => [newStudent, ...prev]);
     apiRegisterStudent(newStudent).catch(() => {});
+
+    // Save persistent student credentials
+    if (newStudent.email && newStudentData.password) {
+      const newAcc: UserAccount = {
+        email: newStudent.email.trim(),
+        password: newStudentData.password,
+        role: 'Student',
+        name: newStudent.name,
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+      setUserAccounts(prev => [newAcc, ...prev.filter(a => a.email.toLowerCase() !== newAcc.email.toLowerCase())]);
+    }
 
     // Sync newly registered student into userProfiles.Student
     updateUserProfile({
@@ -530,7 +613,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     apiApproveStudentVerification(studentId).catch(() => {});
 
-    // REAL-TIME NOTIFICATION: Alert Student about verified status
     if (student) {
       addNotification({
         recipientRole: 'Student',
@@ -573,7 +655,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     apiUpdateAttendanceStatus(studentId, status).catch(() => {});
   };
 
-  // Outing Workflow Functions & Real-Time Notifications
   const submitOutingRequest = (requestData: Omit<OutingRequest, 'id' | 'status' | 'appliedAt'>): OutingRequest => {
     const newReq: OutingRequest = {
       ...requestData,
@@ -584,7 +665,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setOutingRequests(prev => [newReq, ...prev]);
     apiSubmitOutingRequest(requestData).catch(() => {});
 
-    // REAL-TIME NOTIFICATIONS: Alert CC & Warden
     addNotification({
       recipientRole: 'CC',
       title: 'New Outing Gate Pass Applied',
@@ -611,7 +691,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     apiCCApproveOuting(requestId).catch(() => {});
 
     if (req) {
-      // REAL-TIME NOTIFICATION: Alert Warden & Student
       addNotification({
         recipientRole: 'Warden',
         title: 'CC Recommended Outing Pass ✅',
@@ -662,7 +741,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     apiWardenApproveOuting(requestId).catch(() => {});
 
     if (req) {
-      // REAL-TIME NOTIFICATION: Alert Student & CC
       addNotification({
         recipientRole: 'Student',
         recipientId: req.studentId,
@@ -681,7 +759,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         relatedId: req.id
       });
 
-      // Schedule automated Outing Return Time Reminder notification
       addNotification({
         recipientRole: 'Student',
         recipientId: req.studentId,
@@ -711,11 +788,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Submit Room Maintenance Complaint
   const submitComplaint = (category: string, description: string) => {
     const studentProf = userProfiles.Student;
     
-    // REAL-TIME NOTIFICATIONS: Alert Warden & CC
     addNotification({
       recipientRole: 'Warden',
       title: `New Maintenance Ticket (${category})`,
@@ -758,7 +833,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setQuickStatusFilter('All');
   };
 
-  // Filter notifications relevant to currently logged-in role
   const roleNotifications = notifications.filter(n => 
     n.recipientRole === role || n.recipientRole === 'All'
   );
@@ -816,6 +890,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         userProfiles,
         currentProfile,
         updateUserProfile,
+
+        // User Accounts Store
+        userAccounts,
       }}
     >
       {children}

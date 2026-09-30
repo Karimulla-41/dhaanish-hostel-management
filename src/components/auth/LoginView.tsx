@@ -26,7 +26,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onGoToSignUp, onGoToStaffS
       return;
     }
     setErrorMessage('');
-    login(email, selectedRole);
+    const res = login(email, password, selectedRole);
+    if (!res.success) {
+      setErrorMessage(res.message || 'Invalid email or password.');
+    }
   };
 
   const handleForgotSubmit = (e: React.FormEvent) => {
