@@ -3,7 +3,6 @@ import { useAuth } from '../../context/AuthContext';
 import { 
   CheckCircle2, 
   ArrowLeft, 
-  ShieldCheck, 
   Mail, 
   Lock, 
   Clock, 
@@ -19,7 +18,7 @@ interface SignUpProps {
 }
 
 export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
-  const { registerStudent, approveStudentVerification, setActiveView } = useAuth();
+  const { registerStudent } = useAuth();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
@@ -72,9 +71,6 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
     'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80'
   );
 
-  // Completed Registered Student object
-  const [createdStudentId, setCreatedStudentId] = useState<string | null>(null);
-
   // Handlers
   const handleStep1Submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +121,7 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
       return;
     }
 
-    const created = registerStudent({
+    registerStudent({
       name: fullName,
       regNo: regNo.toUpperCase(),
       department,
@@ -139,7 +135,6 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
       photoUrl,
     });
 
-    setCreatedStudentId(created.id);
     setStep(4);
   };
 
@@ -511,53 +506,21 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
                 Status: Pending Verification
               </span>
               <h2 className="text-base font-bold text-navy-900 mt-3">
-                Registration Submitted Successfully!
+                Dhaanish Hostel Registration Submitted Successfully!
               </h2>
               <p className="text-xs text-neutral-600 max-w-md mx-auto mt-1">
-                Your profile has been registered into the Dhaanish Hostel Registry. Warden verification is currently in progress.
+                Your profile has been registered into the Dhaanish Hostel Registry. Warden / Class Coordinator verification is currently in progress.
               </p>
             </div>
 
-            {/* Quick Demo Warden Approval Toggle */}
-            <div className="bg-navy-50 border border-navy-200 p-4 rounded-md text-left text-xs space-y-2">
-              <p className="font-semibold text-navy-900 flex items-center space-x-1.5">
-                <ShieldCheck className="w-4 h-4 text-navy-700" />
-                <span>Demo Feature: Warden Approval Simulator</span>
-              </p>
-              <p className="text-neutral-600 text-[11px]">
-                As a Warden inspecting this demo, you can instantly grant verification approval for this record right now:
-              </p>
-              <div className="flex space-x-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (createdStudentId) approveStudentVerification(createdStudentId);
-                    alert('Student Profile approved! Status updated to Active.');
-                  }}
-                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-1.5 rounded text-xs flex items-center space-x-1"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Approve Student (Change Status to Active)</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="flex space-x-3 pt-2">
+            <div className="pt-3">
               <button
                 type="button"
                 onClick={onBackToLogin}
-                className="w-1/2 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 font-semibold py-2 rounded text-xs"
+                className="w-full max-w-xs bg-navy-700 hover:bg-navy-800 text-white font-bold py-2.5 rounded text-xs shadow transition mx-auto flex items-center justify-center space-x-2"
               >
-                Return to Login
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveView('registry');
-                }}
-                className="w-1/2 bg-navy-700 hover:bg-navy-800 text-white font-bold py-2 rounded text-xs"
-              >
-                Go to Warden Student Registry
+                <ArrowLeft className="w-4 h-4" />
+                <span>Return to Student Login</span>
               </button>
             </div>
           </div>
