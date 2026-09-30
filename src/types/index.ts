@@ -100,3 +100,33 @@ export interface OutingRequest {
   monthlyPassVerified?: boolean;
 }
 
+export type NotificationCategory = 'outing' | 'complaint' | 'registration' | 'reminder' | 'system';
+
+export interface AppNotification {
+  id: string;
+  recipientRole: UserRole | 'All';
+  recipientId?: string; // Optional studentId or staffId
+  title: string;
+  message: string;
+  category: NotificationCategory;
+  timestamp: string;
+  isRead: boolean;
+  actionView?: string;
+  relatedId?: string;
+}
+
+export interface UserProfile {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: UserRole;
+  photoUrl: string;
+  department?: Department;
+  year?: Year;
+  block?: HostelBlock;
+  room?: string;
+  staffId?: string;
+  designation?: string;
+}
+

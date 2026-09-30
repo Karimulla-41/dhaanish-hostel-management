@@ -20,8 +20,10 @@ export const StudentDashboard: React.FC = () => {
     logout, 
     outingRequests, 
     submitOutingRequest, 
+    submitComplaint,
     monthlyQRToken,
-    updateStudentAttendanceStatus 
+    updateStudentAttendanceStatus,
+    currentProfile
   } = useAuth();
   
   const student = students.find(s => s.regNo === '23CSE1045') || students[0];
@@ -54,12 +56,12 @@ export const StudentDashboard: React.FC = () => {
 
     submitOutingRequest({
       studentId: student.id,
-      studentName: student.name,
+      studentName: currentProfile.name || student.name,
       regNo: student.regNo,
       dept: student.department,
       year: student.year,
-      room: student.room,
-      block: student.block,
+      room: currentProfile.room || student.room,
+      block: currentProfile.block || student.block,
       type: passType,
       destination,
       reason,
@@ -71,16 +73,21 @@ export const StudentDashboard: React.FC = () => {
     setPassSubmitted(true);
     setTimeout(() => {
       setPassSubmitted(false);
-      alert('Gate Pass submitted successfully! Sent to Class Coordinator (CC) for initial approval.');
+      alert('Gate Pass submitted successfully! Real-time notifications dispatched to CC and Warden.');
     }, 800);
   };
 
   const handleComplaintSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!complaintDesc) return;
+    
+    // Dispatch real-time complaint notification
+    submitComplaint(complaintCategory, complaintDesc);
+    
     setTimeout(() => {
       setActiveStudentModule(null);
-      alert('Maintenance Ticket submitted to Block Warden Office!');
+      setComplaintDesc('');
+      alert('Maintenance Ticket logged! Real-time notification dispatched to Block Warden & CC Office.');
     }, 500);
   };
 
@@ -143,9 +150,16 @@ export const StudentDashboard: React.FC = () => {
               <p className="text-sm font-bold text-neutral-700 mt-1">
                 HOSTEL MANAGEMENT SYSTEM — STUDENT PORTAL
               </p>
-              <p className="text-xs font-semibold text-navy-900 mt-0.5">
-                {student.name} ({student.regNo}) • {student.block} ({student.room})
-              </p>
+              <div className="flex items-center justify-center space-x-2 mt-1.5">
+                <img
+                  src={currentProfile.photoUrl || student.photoUrl}
+                  alt={currentProfile.name}
+                  className="w-6 h-6 rounded-full object-cover border border-navy-700"
+                />
+                <p className="text-xs font-semibold text-navy-900">
+                  {currentProfile.name || student.name} ({student.regNo}) • {currentProfile.block || student.block} ({currentProfile.room || student.room})
+                </p>
+              </div>
             </div>
           </div>
 
@@ -405,7 +419,7 @@ export const StudentDashboard: React.FC = () => {
               </div>
 
               <button type="submit" className="w-full bg-navy-700 text-white font-bold py-2.5 rounded shadow">
-                Submit Maintenance Complaint
+                Submit Maintenance Complaint & Alert Office
               </button>
             </form>
           </div>
@@ -441,12 +455,12 @@ export const StudentDashboard: React.FC = () => {
             </div>
 
             <div className="flex items-center space-x-3 pt-2">
-              <img src={student.photoUrl} alt={student.name} className="w-16 h-16 rounded-md object-cover border border-white/40 shadow" />
+              <img src={currentProfile.photoUrl || student.photoUrl} alt={currentProfile.name || student.name} className="w-16 h-16 rounded-md object-cover border border-white/40 shadow" />
               <div className="text-[11px] space-y-0.5 text-neutral-200">
-                <p className="font-bold text-white text-sm">{student.name}</p>
+                <p className="font-bold text-white text-sm">{currentProfile.name || student.name}</p>
                 <p className="font-mono text-neutral-300">{student.regNo}</p>
                 <p>{student.department} • {student.year}</p>
-                <p className="text-amber-300 font-semibold">{student.block} • Room {student.room}</p>
+                <p className="text-amber-300 font-semibold">{currentProfile.block || student.block} • Room {currentProfile.room || student.room}</p>
               </div>
             </div>
 
