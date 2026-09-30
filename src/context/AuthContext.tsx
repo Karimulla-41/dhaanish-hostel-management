@@ -312,22 +312,93 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const currentProfile = userProfiles[role] || defaultProfiles[role];
 
   const login = (email: string, overrideRole?: UserRole) => {
-    if (overrideRole) {
-      setRole(overrideRole);
-    } else {
+    let targetRole: UserRole = overrideRole || 'Student';
+    if (!overrideRole) {
       const matchedStaff = registeredStaff.find(s => s.email.toLowerCase() === email.toLowerCase());
       if (matchedStaff) {
-        setRole(matchedStaff.role);
+        targetRole = matchedStaff.role;
       } else {
         const lower = email.toLowerCase();
-        if (lower.includes('warden')) setRole('Warden');
-        else if (lower.includes('cc')) setRole('CC');
-        else if (lower.includes('admin')) setRole('Admin');
-        else if (lower.includes('security')) setRole('Security');
-        else setRole('Student');
+        if (lower.includes('warden')) targetRole = 'Warden';
+        else if (lower.includes('cc')) targetRole = 'CC';
+        else if (lower.includes('admin')) targetRole = 'Admin';
+        else if (lower.includes('security')) targetRole = 'Security';
+        else targetRole = 'Student';
       }
     }
-    apiLogin(email, overrideRole || 'Student').catch(() => {});
+    setRole(targetRole);
+
+    // Dynamic Student Profile Customization for Logged-In User
+    if (email && email.trim() && targetRole === 'Student') {
+      const emailLower = email.toLowerCase().trim();
+      const matchedStudent = students.find(s => 
+        s.email.toLowerCase() === emailLower || 
+        emailLower.includes(s.name.toLowerCase().split(' ')[0]) ||
+        s.name.toLowerCase().includes(emailLower.split('@')[0])
+      );
+
+      if (matchedStudent) {
+        updateUserProfile({
+          id: matchedStudent.id,
+          name: matchedStudent.name,
+          email: matchedStudent.email,
+          phone: matchedStudent.phone,
+          role: 'Student',
+          photoUrl: matchedStudent.photoUrl,
+          department: matchedStudent.department,
+          year: matchedStudent.year,
+          block: matchedStudent.block,
+          room: matchedStudent.room,
+        });
+      } else {
+        // Format handle e.g. karimulla@gmail.com -> Karimulla
+        const handle = emailLower.split('@')[0].replace(/[._-]/g, ' ');
+        const formattedName = handle.charAt(0).toUpperCase() + handle.slice(1);
+        
+        const newStudentProfile: UserProfile = {
+          id: `STU-00${students.length + 1}`,
+          name: formattedName,
+          email: email,
+          phone: '+91 98401 ' + Math.floor(10000 + Math.random() * 90000),
+          role: 'Student',
+          photoUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+          department: 'CSE',
+          year: '1st Year',
+          block: 'Block A',
+          room: 'A-101',
+        };
+        
+        updateUserProfile(newStudentProfile);
+        
+        // Add to students array if missing
+        setStudents(prev => {
+          if (prev.some(s => s.email.toLowerCase() === emailLower)) return prev;
+          return [{
+            id: newStudentProfile.id,
+            name: formattedName,
+            regNo: '26CSE' + Math.floor(1000 + Math.random() * 9000),
+            department: 'CSE',
+            year: '1st Year',
+            block: 'Block A',
+            floor: '1st Floor',
+            room: 'A-101',
+            bedNo: 'A-101-1',
+            hostelId: 'HST00' + (prev.length + 1),
+            photoUrl: newStudentProfile.photoUrl,
+            email: email,
+            phone: newStudentProfile.phone,
+            parentName: 'Parent of ' + formattedName,
+            parentContact: '+91 98000 11111',
+            status: 'Present',
+            verificationStatus: 'Pending Verification',
+            joinDate: new Date().toISOString().split('T')[0],
+            activityHistory: []
+          }, ...prev];
+        });
+      }
+    }
+
+    apiLogin(email, targetRole).catch(() => {});
     setIsAuthenticated(true);
     setActiveView('dashboard');
   };
@@ -393,6 +464,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setStudents(prev => [newStudent, ...prev]);
     apiRegisterStudent(newStudent).catch(() => {});
+
+    // Sync newly registered student into userProfiles.Student
+    updateUserProfile({
+      id: newStudent.id,
+      name: newStudent.name,
+      email: newStudent.email,
+      phone: newStudent.phone,
+      role: 'Student',
+      photoUrl: newStudent.photoUrl,
+      department: newStudent.department,
+      year: newStudent.year,
+      block: newStudent.block,
+      room: newStudent.room
+    });
 
     // REAL-TIME NOTIFICATION: Alert Warden & CC about new student registration
     addNotification({

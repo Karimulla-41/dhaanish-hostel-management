@@ -26,7 +26,30 @@ export const StudentDashboard: React.FC = () => {
     currentProfile
   } = useAuth();
   
-  const student = students.find(s => s.regNo === '23CSE1045') || students[0];
+  const student = students.find(s => 
+    (s.email && currentProfile.email && s.email.toLowerCase() === currentProfile.email.toLowerCase()) ||
+    (s.name && currentProfile.name && s.name.toLowerCase() === currentProfile.name.toLowerCase())
+  ) || {
+    id: currentProfile.id || 'STU-001',
+    name: currentProfile.name || 'Student Resident',
+    regNo: '26CSE' + Math.floor(1000 + Math.random() * 9000),
+    department: currentProfile.department || 'CSE',
+    year: currentProfile.year || '1st Year',
+    block: currentProfile.block || 'Block A',
+    floor: '1st Floor',
+    room: currentProfile.room || 'A-101',
+    bedNo: 'A-101-1',
+    hostelId: 'HST001',
+    photoUrl: currentProfile.photoUrl,
+    email: currentProfile.email,
+    phone: currentProfile.phone,
+    parentName: 'Parent of ' + (currentProfile.name || 'Student'),
+    parentContact: currentProfile.phone || '+91 98000 11111',
+    status: 'Present' as const,
+    verificationStatus: 'Pending Verification' as const,
+    joinDate: new Date().toISOString().split('T')[0],
+    activityHistory: []
+  };
 
   const [activeStudentModule, setActiveStudentModule] = useState<'outing' | 'complaint' | 'idcard' | 'scanner' | null>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);

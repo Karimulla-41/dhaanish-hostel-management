@@ -371,7 +371,7 @@ export const WardenAttendanceView: React.FC<WardenAttendanceViewProps> = ({ onBa
                     {/* Block & Room */}
                     <td className="p-3">
                       <div className="font-bold text-navy-900">{student.block}</div>
-                      <div className="text-[11px] font-mono text-neutral-600">Room {student.room} (Bed {student.bedNo.slice(-1)})</div>
+                      <div className="text-[11px] font-mono text-neutral-600">Room {student.room} (Bed {(student.bedNo || '1').slice(-1)})</div>
                     </td>
 
                     {/* Parent Contact */}
