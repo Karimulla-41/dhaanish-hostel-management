@@ -164,7 +164,7 @@ export const CCDashboard: React.FC = () => {
               onChange={(e) => setSelectedDept(e.target.value as Department)}
               className="bg-white p-1.5 rounded border border-navy-400 font-bold text-navy-800 text-xs focus:ring-1 focus:ring-navy-600"
             >
-              {['CSE', 'ECE', 'MECH', 'CIVIL', 'AI&DS', 'IT', 'EEE'].map(d => (
+              {['CSE', 'ECE', 'EEE', 'AIDS', 'AIML', 'MECH', 'PETRO', 'ROBO', 'MECHATRONICS'].map(d => (
                 <option key={d} value={d}>{d} Department</option>
               ))}
             </select>

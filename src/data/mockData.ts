@@ -7,7 +7,7 @@ export const initialBlocks: BlockInfo[] = [
     capacity: 120,
     occupied: 112,
     floors: 4,
-    description: 'Senior Boys Residence - Engineering Departments'
+    description: 'Boys Hostel Block A'
   },
   {
     name: 'Block B',
@@ -15,7 +15,7 @@ export const initialBlocks: BlockInfo[] = [
     capacity: 140,
     occupied: 128,
     floors: 4,
-    description: 'Junior Boys Residence - First & Second Year'
+    description: 'Boys Hostel Block B'
   },
   {
     name: 'Block C',
@@ -23,7 +23,7 @@ export const initialBlocks: BlockInfo[] = [
     capacity: 100,
     occupied: 94,
     floors: 3,
-    description: 'Girls Residence Block 1 - All Departments'
+    description: 'Boys Hostel Block C'
   },
   {
     name: 'Block D',
@@ -31,7 +31,7 @@ export const initialBlocks: BlockInfo[] = [
     capacity: 120,
     occupied: 105,
     floors: 4,
-    description: 'Girls Residence Block 2 - Post Graduates & Final Year'
+    description: 'Boys Hostel Block D'
   },
   {
     name: 'Block E',
@@ -39,7 +39,7 @@ export const initialBlocks: BlockInfo[] = [
     capacity: 80,
     occupied: 68,
     floors: 3,
-    description: 'International & Research Scholar Wing'
+    description: 'Boys Hostel Block E'
   },
   {
     name: 'Block F',
@@ -47,7 +47,7 @@ export const initialBlocks: BlockInfo[] = [
     capacity: 160,
     occupied: 0,
     floors: 5,
-    description: 'New Executive Hostel Complex (Target Completion: Q2 2027)'
+    description: 'Boys Hostel Block F (Under Construction)'
   }
 ];
 

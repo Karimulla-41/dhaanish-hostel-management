@@ -399,7 +399,7 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
                   onChange={(e) => setDepartment(e.target.value as Department)}
                   className="w-full p-2 border border-neutral-300 rounded focus:ring-1 focus:ring-navy-600"
                 >
-                  {['CSE', 'ECE', 'MECH', 'CIVIL', 'AI&DS', 'IT', 'EEE'].map((d) => (
+                  {['CSE', 'ECE', 'EEE', 'AIDS', 'AIML', 'MECH', 'PETRO', 'ROBO', 'MECHATRONICS'].map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
@@ -461,12 +461,12 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
                   onChange={(e) => setHostelBlock(e.target.value as HostelBlock)}
                   className="w-full p-2 border border-neutral-300 rounded font-semibold text-navy-800"
                 >
-                  <option value="Block A">Block A (Senior Boys)</option>
-                  <option value="Block B">Block B (Junior Boys)</option>
-                  <option value="Block C">Block C (Girls Block 1)</option>
-                  <option value="Block D">Block D (Girls Block 2)</option>
-                  <option value="Block E">Block E (International Wing)</option>
-                  <option value="Block F" disabled>Block F (Under Construction - Disabled)</option>
+                  <option value="Block A">Block A (Boys Hostel)</option>
+                  <option value="Block B">Block B (Boys Hostel)</option>
+                  <option value="Block C">Block C (Boys Hostel)</option>
+                  <option value="Block D">Block D (Boys Hostel)</option>
+                  <option value="Block E">Block E (Boys Hostel)</option>
+                  <option value="Block F" disabled>Block F (Under Construction)</option>
                 </select>
               </div>
 

@@ -274,13 +274,9 @@ export const WardenAttendanceView: React.FC<WardenAttendanceViewProps> = ({ onBa
                 className="bg-white border border-neutral-300 rounded px-2 py-1 font-bold text-navy-900 text-xs focus:ring-1 focus:ring-navy-600"
               >
                 <option value="All">All Departments</option>
-                <option value="CSE">CSE</option>
-                <option value="ECE">ECE</option>
-                <option value="MECH">MECH</option>
-                <option value="CIVIL">CIVIL</option>
-                <option value="AI&DS">AI&DS</option>
-                <option value="IT">IT</option>
-                <option value="EEE">EEE</option>
+                {['CSE', 'ECE', 'EEE', 'AIDS', 'AIML', 'MECH', 'PETRO', 'ROBO', 'MECHATRONICS'].map(d => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
               </select>
             </div>
 

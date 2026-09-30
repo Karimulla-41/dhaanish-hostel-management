@@ -6,7 +6,7 @@ export type AttendanceStatus = 'Present' | 'Absent' | 'Outing' | 'Leave';
 
 export type VerificationStatus = 'Pending Verification' | 'Active';
 
-export type Department = 'CSE' | 'ECE' | 'MECH' | 'CIVIL' | 'AI&DS' | 'IT' | 'EEE';
+export type Department = 'CSE' | 'ECE' | 'EEE' | 'AIDS' | 'AIML' | 'MECH' | 'PETRO' | 'ROBO' | 'MECHATRONICS';
 
 export type Year = '1st Year' | '2nd Year' | '3rd Year' | '4th Year';
 
