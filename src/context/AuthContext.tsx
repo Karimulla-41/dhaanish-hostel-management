@@ -9,7 +9,8 @@ import type {
   OutingRequest,
   AppNotification,
   UserProfile,
-  UserAccount
+  UserAccount,
+  HostelBlock
 } from '../types';
 import { initialStudents, initialBlocks } from '../data/mockData';
 import {
@@ -82,6 +83,10 @@ interface AuthContextType {
   
   // User Accounts
   userAccounts: UserAccount[];
+
+  // Warden Assignment Management
+  assignWardenToBlock: (data: { name: string; email: string; phone: string; password?: string; assignedBlock: HostelBlock; designation?: string }) => void;
+  removeWardenFromBlock: (block: HostelBlock) => void;
 }
 
 const defaultFilters: FilterOptions = {
@@ -211,7 +216,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [blocks] = useState<BlockInfo[]>(initialBlocks);
-  const [registeredStaff, setRegisteredStaff] = useState<RegisteredStaff[]>([]);
+  const [registeredStaff, setRegisteredStaff] = useState<RegisteredStaff[]>(() => {
+    try {
+      const saved = localStorage.getItem('dhaanish_registered_staff');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn('Failed to load registered staff from localStorage', e);
+    }
+    return [];
+  });
 
   const [outingRequests, setOutingRequests] = useState<OutingRequest[]>(initialOutingRequests);
   const [monthlyQRToken, setMonthlyQRToken] = useState<string>('DHAANISH-RENEWAL-2026-10-OCTOBER');
@@ -311,6 +324,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('LocalStorage save error for user profiles', e);
     }
   }, [userProfiles]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('dhaanish_registered_staff', JSON.stringify(registeredStaff));
+    } catch (e) {
+      console.warn('LocalStorage save error for registered staff', e);
+    }
+  }, [registeredStaff]);
 
   // Sync initial API Data
   useEffect(() => {
@@ -496,6 +517,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return newStaff;
+  };
+
+  const assignWardenToBlock = (data: { name: string; email: string; phone: string; password?: string; assignedBlock: HostelBlock; designation?: string }) => {
+    const existingIndex = registeredStaff.findIndex(s => s.role === 'Warden' && s.assignedBlock === data.assignedBlock);
+    const updatedWarden: RegisteredStaff = {
+      id: existingIndex >= 0 ? registeredStaff[existingIndex].id : `STF-W-${Date.now()}`,
+      name: data.name,
+      email: data.email.trim(),
+      role: 'Warden',
+      staffId: existingIndex >= 0 ? registeredStaff[existingIndex].staffId : `WRD-${Math.floor(100 + Math.random() * 900)}`,
+      phone: data.phone,
+      assignedBlock: data.assignedBlock,
+      designation: data.designation || `Warden (${data.assignedBlock})`,
+      joinDate: new Date().toISOString().split('T')[0],
+    };
+
+    setRegisteredStaff(prev => {
+      const filtered = prev.filter(s => !(s.role === 'Warden' && s.assignedBlock === data.assignedBlock));
+      return [...filtered, updatedWarden];
+    });
+
+    if (data.email) {
+      const newAcc: UserAccount = {
+        email: data.email.trim(),
+        password: data.password || 'warden123',
+        role: 'Warden',
+        name: data.name,
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+      setUserAccounts(prev => [newAcc, ...prev.filter(a => a.email.toLowerCase() !== newAcc.email.toLowerCase())]);
+    }
+  };
+
+  const removeWardenFromBlock = (block: HostelBlock) => {
+    setRegisteredStaff(prev => prev.filter(s => !(s.role === 'Warden' && s.assignedBlock === block)));
   };
 
   const registerStudent = (newStudentData: Partial<Student> & { password?: string }): Student => {
@@ -893,6 +949,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // User Accounts Store
         userAccounts,
+
+        // Warden Management Methods
+        assignWardenToBlock,
+        removeWardenFromBlock,
       }}
     >
       {children}

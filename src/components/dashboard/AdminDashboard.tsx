@@ -34,10 +34,29 @@ interface EditableBlock {
 }
 
 export const AdminDashboard: React.FC = () => {
-  const { students, logout } = useAuth();
+  const { students, registeredStaff, assignWardenToBlock, removeWardenFromBlock, logout } = useAuth();
 
-  // Warden Management State
-  const [wardenList, setWardenList] = useState<WardenRecord[]>([]);
+  // Compute Warden List directly from persistent registeredStaff
+  const blocks: HostelBlock[] = ['Block A', 'Block B', 'Block C', 'Block D', 'Block E', 'Block F'];
+  const wardenList: WardenRecord[] = blocks.map(b => {
+    const assigned = registeredStaff.find(s => s.role === 'Warden' && s.assignedBlock === b);
+    if (assigned) {
+      return {
+        block: b,
+        warden: assigned.name,
+        designation: assigned.designation || `Block Warden (${b})`,
+        phone: assigned.phone,
+        email: assigned.email,
+      };
+    }
+    return {
+      block: b,
+      warden: 'Unassigned / Vacant',
+      designation: 'Vacant Post',
+      phone: 'N/A',
+      email: 'unassigned@dhaanish.in',
+    };
+  });
 
   // Block Capacity & Status State
   const [blockList, setBlockList] = useState<EditableBlock[]>([
@@ -56,6 +75,7 @@ export const AdminDashboard: React.FC = () => {
   const [wardenDesignationInput, setWardenDesignationInput] = useState('');
   const [wardenPhoneInput, setWardenPhoneInput] = useState('');
   const [wardenEmailInput, setWardenEmailInput] = useState('');
+  const [wardenPasswordInput, setWardenPasswordInput] = useState('');
 
   const [showCapacityModal, setShowCapacityModal] = useState(false);
   const [editingBlockName, setEditingBlockName] = useState<HostelBlock>('Block A');
@@ -72,39 +92,34 @@ export const AdminDashboard: React.FC = () => {
   const handleOpenAssignModal = (w: WardenRecord) => {
     setEditingWardenBlock(w.block);
     setWardenNameInput(w.warden === 'Unassigned / Vacant' ? '' : w.warden);
-    setWardenDesignationInput(w.designation);
-    setWardenPhoneInput(w.phone);
-    setWardenEmailInput(w.email);
+    setWardenDesignationInput(w.designation === 'Vacant Post' ? `Block Warden (${w.block})` : w.designation);
+    setWardenPhoneInput(w.phone === 'N/A' ? '' : w.phone);
+    setWardenEmailInput(w.email === 'unassigned@dhaanish.in' ? '' : w.email);
+    setWardenPasswordInput('warden123');
     setShowWardenModal(true);
   };
 
   const handleSaveWarden = (e: React.FormEvent) => {
     e.preventDefault();
-    setWardenList(prev => prev.map(w => {
-      if (w.block === editingWardenBlock) {
-        return {
-          ...w,
-          warden: wardenNameInput || 'Unassigned / Vacant',
-          designation: wardenDesignationInput || 'Hostel Warden',
-          phone: wardenPhoneInput || '+91 90000 00000',
-          email: wardenEmailInput || 'warden@dhaanish.in',
-        };
-      }
-      return w;
-    }));
+    if (!wardenNameInput.trim() || !wardenEmailInput.trim()) return;
+
+    assignWardenToBlock({
+      name: wardenNameInput.trim(),
+      email: wardenEmailInput.trim(),
+      phone: wardenPhoneInput.trim() || '+91 90000 00000',
+      password: wardenPasswordInput.trim() || 'warden123',
+      assignedBlock: editingWardenBlock,
+      designation: wardenDesignationInput.trim() || `Block Warden (${editingWardenBlock})`,
+    });
+
     setShowWardenModal(false);
-    alert(`Warden assignment updated for ${editingWardenBlock}!`);
+    alert(`Warden ${wardenNameInput} successfully assigned to ${editingWardenBlock}! Credentials saved for login.`);
   };
 
   const handleRemoveWarden = (block: HostelBlock) => {
     if (confirm(`Are you sure you want to remove the assigned Warden from ${block}?`)) {
-      setWardenList(prev => prev.map(w => w.block === block ? {
-        ...w,
-        warden: 'Unassigned / Vacant',
-        designation: 'Vacant Post',
-        phone: 'N/A',
-        email: 'unassigned@dhaanish.in'
-      } : w));
+      removeWardenFromBlock(block);
+      alert(`Warden removed from ${block}.`);
     }
   };
 
@@ -460,6 +475,19 @@ export const AdminDashboard: React.FC = () => {
                   onChange={(e) => setWardenEmailInput(e.target.value)}
                   className="w-full p-2 border border-neutral-300 rounded"
                 />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-neutral-700 mb-1">Set Login Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter password for Warden login"
+                  value={wardenPasswordInput}
+                  onChange={(e) => setWardenPasswordInput(e.target.value)}
+                  className="w-full p-2 border border-neutral-300 rounded"
+                />
+                <p className="text-[10px] text-neutral-500 mt-0.5">Used by Warden to log in to the portal.</p>
               </div>
 
               <div className="pt-2 flex justify-end space-x-2">
