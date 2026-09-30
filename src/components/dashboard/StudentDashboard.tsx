@@ -10,9 +10,14 @@ import {
   ArrowLeft,
   LogOut,
   Scan,
-  AlertCircle
+  AlertCircle,
+  Bell,
+  Trash2,
+  CheckCheck
 } from 'lucide-react';
 import { QRScannerModal } from '../common/QRScannerModal';
+import { UserProfileModal } from '../common/UserProfileModal';
+import type { AppNotification } from '../../types';
 
 export const StudentDashboard: React.FC = () => {
   const { 
@@ -23,8 +28,17 @@ export const StudentDashboard: React.FC = () => {
     submitComplaint,
     monthlyQRToken,
     updateStudentAttendanceStatus,
-    currentProfile
+    currentProfile,
+    updateUserProfile,
+    notifications,
+    unreadNotificationCount,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    deleteNotification
   } = useAuth();
+  
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
   
   const student = students.find(s => 
     (s.email && currentProfile.email && s.email.toLowerCase() === currentProfile.email.toLowerCase()) ||
@@ -125,27 +139,115 @@ export const StudentDashboard: React.FC = () => {
     <div className="min-h-screen bg-transparent text-navy-950 p-4 sm:p-8 flex flex-col justify-between selection:bg-navy-700 selection:text-white font-sans">
       
       {/* Top Utility Bar */}
-      <div className="w-full max-w-4xl mx-auto flex justify-between items-center text-xs pb-4 border-b border-navy-900/20 bg-white/95 px-4 py-2.5 rounded-xl border shadow-lg">
+      <div className="w-full max-w-4xl mx-auto flex flex-wrap justify-between items-center text-xs pb-4 border-b border-navy-900/20 bg-white/95 px-4 py-2.5 rounded-xl border shadow-lg gap-2">
         <div className="flex items-center space-x-2 font-bold text-navy-900">
           <ShieldCheck className="w-4 h-4 text-navy-700" />
           <span>STUDENT RESIDENT PORTAL</span>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          
+          {/* Real-time Notifications Bell */}
+          <div className="relative">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="p-2 text-navy-900 bg-neutral-100 hover:bg-neutral-200 rounded-lg relative focus:outline-none border border-neutral-300 font-bold transition flex items-center space-x-1"
+              title="Real-time Notifications"
+            >
+              <Bell className="w-4 h-4 text-navy-700" />
+              <span className="hidden sm:inline">Alerts</span>
+              {unreadNotificationCount > 0 && (
+                <span className="bg-red-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center border border-white animate-pulse">
+                  {unreadNotificationCount}
+                </span>
+              )}
+            </button>
+
+            {showNotifications && (
+              <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white text-neutral-900 rounded-xl shadow-2xl border border-neutral-200 py-2 z-50 text-xs text-left">
+                <div className="px-4 py-2 border-b border-neutral-100 font-bold flex justify-between items-center text-navy-900">
+                  <span className="flex items-center space-x-1.5">
+                    <Bell className="w-3.5 h-3.5 text-navy-700" />
+                    <span>My Alerts</span>
+                  </span>
+                  {unreadNotificationCount > 0 && (
+                    <button
+                      onClick={markAllNotificationsAsRead}
+                      className="text-[10px] text-navy-700 hover:underline flex items-center space-x-1 bg-navy-50 px-2 py-0.5 rounded font-semibold"
+                    >
+                      <CheckCheck className="w-3 h-3" />
+                      <span>Mark read</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-64 overflow-y-auto divide-y divide-neutral-100">
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-neutral-400">No new notifications</div>
+                  ) : (
+                    notifications.map((n: AppNotification) => (
+                      <div
+                        key={n.id}
+                        onClick={() => {
+                          markNotificationAsRead(n.id);
+                          setShowNotifications(false);
+                        }}
+                        className={`p-3 hover:bg-neutral-50 cursor-pointer flex items-start justify-between space-x-2 ${
+                          !n.isRead ? 'bg-amber-50/60 font-semibold' : ''
+                        }`}
+                      >
+                        <div>
+                          <p className="font-bold text-navy-900">{n.title}</p>
+                          <p className="text-neutral-600 text-[11px] mt-0.5">{n.message}</p>
+                          <span className="text-[9px] text-neutral-400">{n.timestamp}</span>
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNotification(n.id);
+                          }}
+                          className="text-neutral-300 hover:text-red-600 p-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Profile Section Button */}
+          <button
+            onClick={() => setIsProfileModalOpen(true)}
+            className="flex items-center space-x-2 bg-navy-700 hover:bg-navy-800 text-white px-2.5 py-1.5 rounded-lg border border-navy-800 shadow-sm transition"
+            title="Edit My Profile & Upload Photo"
+          >
+            <img
+              src={currentProfile.photoUrl || student.photoUrl}
+              alt={currentProfile.name || student.name}
+              className="w-5 h-5 rounded-full object-cover border border-amber-300"
+            />
+            <span className="font-bold text-xs max-w-[100px] truncate hidden sm:inline">
+              {currentProfile.name || student.name}
+            </span>
+          </button>
+
           <button
             onClick={() => setIsScannerOpen(true)}
-            className="text-navy-900 font-bold flex items-center space-x-1.5 bg-amber-400 hover:bg-amber-300 px-3 py-1.5 rounded-lg border border-amber-500 shadow-sm transition"
+            className="text-navy-900 font-bold flex items-center space-x-1.5 bg-amber-400 hover:bg-amber-300 px-2.5 py-1.5 rounded-lg border border-amber-500 shadow-sm transition"
           >
             <Scan className="w-3.5 h-3.5 text-navy-950" />
-            <span>Scan Gate Security QR</span>
+            <span className="hidden sm:inline">Scan Gate QR</span>
           </button>
 
           <button
             onClick={logout}
-            className="text-red-700 font-bold flex items-center space-x-1 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg border border-red-200 transition"
+            className="text-red-700 font-bold flex items-center space-x-1 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg border border-red-200 transition"
           >
             <LogOut className="w-3.5 h-3.5" />
-            <span>Sign Out</span>
+            <span className="hidden sm:inline">Sign Out</span>
           </button>
         </div>
       </div>
@@ -514,6 +616,14 @@ export const StudentDashboard: React.FC = () => {
         onClose={() => setIsScannerOpen(false)}
         expectedToken={monthlyQRToken}
         onSuccessScan={handleSuccessfulQRScan}
+      />
+
+      {/* USER PROFILE & PHOTO UPLOAD MODAL */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentProfile={currentProfile}
+        onSaveProfile={updateUserProfile}
       />
 
       {/* Footer */}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { Header } from './components/common/Header';
 import { MobileWrapper } from './components/common/MobileWrapper';
 import { SplashScreen } from './components/common/SplashScreen';
 import { LoginView } from './components/auth/LoginView';
@@ -60,6 +61,11 @@ const MainAppContent: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-100 font-sans text-neutral-900 relative selection:bg-navy-700 selection:text-white overflow-x-hidden">
       
+      {/* Global Top Header with Notification Bell & User Profile */}
+      {isAuthenticated && activeView !== 'signup' && activeView !== 'staff_signup' && (
+        <Header />
+      )}
+
       {/* Active View Container */}
       <main className="min-h-screen relative z-10">
         {renderActiveView()}
