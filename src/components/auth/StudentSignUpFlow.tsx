@@ -18,7 +18,7 @@ interface SignUpProps {
 }
 
 export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
-  const { registerStudent } = useAuth();
+  const { registerStudent, preRegisterAccount } = useAuth();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
@@ -88,6 +88,9 @@ export const StudentSignUpFlow: React.FC<SignUpProps> = ({ onBackToLogin }) => {
     }
     setStep1Error('');
     
+    // Immediately pre-register user account credentials into persistent store
+    preRegisterAccount(email, password, 'Student', fullName || 'Student Resident');
+
     // Dispatch real OTP email to user inbox
     const res = await apiSendOtp(email);
     if (res.otp) {

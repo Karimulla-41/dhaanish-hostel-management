@@ -19,7 +19,7 @@ interface StaffSignUpProps {
 }
 
 export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) => {
-  const { registerStaff, login } = useAuth();
+  const { registerStaff, preRegisterAccount, login } = useAuth();
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
@@ -84,6 +84,9 @@ export const StaffSignUpFlow: React.FC<StaffSignUpProps> = ({ onBackToLogin }) =
       return;
     }
     setStep1Error('');
+
+    // Pre-register staff account immediately
+    preRegisterAccount(email, password, staffRole, fullName || 'Staff Member');
 
     // Dispatch real OTP email to user inbox
     const res = await apiSendOtp(email);

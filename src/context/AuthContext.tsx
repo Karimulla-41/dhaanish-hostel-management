@@ -81,8 +81,9 @@ interface AuthContextType {
   currentProfile: UserProfile;
   updateUserProfile: (profile: UserProfile) => void;
   
-  // User Accounts
+  // User Accounts & Pre-registration
   userAccounts: UserAccount[];
+  preRegisterAccount: (email: string, password: string, role?: UserRole, name?: string) => void;
 
   // Warden Assignment Management
   assignWardenToBlock: (data: { name: string; email: string; phone: string; password?: string; assignedBlock: HostelBlock; designation?: string }) => void;
@@ -207,14 +208,79 @@ const defaultAccounts: UserAccount[] = [
 
 const initialOutingRequests: OutingRequest[] = [];
 
+// Deduplication Utilities
+function deduplicateAccounts(accounts: UserAccount[]): UserAccount[] {
+  const map = new Map<string, UserAccount>();
+  for (const acc of accounts) {
+    if (!acc || !acc.email) continue;
+    const cleanEmail = acc.email.trim().toLowerCase();
+    map.set(cleanEmail, {
+      ...acc,
+      email: cleanEmail
+    });
+  }
+  return Array.from(map.values());
+}
+
+function deduplicateStudents(studentList: Student[]): Student[] {
+  const map = new Map<string, Student>();
+  for (const s of studentList) {
+    if (!s || (!s.email && !s.regNo)) continue;
+    const key = (s.email ? s.email.trim().toLowerCase() : s.regNo.trim().toUpperCase());
+    map.set(key, {
+      ...s,
+      email: s.email ? s.email.trim().toLowerCase() : s.email,
+      regNo: s.regNo ? s.regNo.trim().toUpperCase() : s.regNo
+    });
+  }
+  return Array.from(map.values());
+}
+
+interface SavedSession {
+  isAuthenticated: boolean;
+  role: UserRole;
+  email: string;
+  activeView: string;
+}
+
+const getSavedSession = (): SavedSession | null => {
+  try {
+    const raw = localStorage.getItem('dhaanish_auth_session');
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.warn('Failed to parse saved session', e);
+  }
+  return null;
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [role, setRole] = useState<UserRole>('Student');
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [activeView, setActiveView] = useState<string>('login');
+  const initialSession = getSavedSession();
+
+  const [role, setRole] = useState<UserRole>(initialSession?.role || 'Student');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(initialSession?.isAuthenticated || false);
+  const [activeView, setActiveView] = useState<string>(
+    initialSession?.isAuthenticated ? (initialSession.activeView || 'dashboard') : 'login'
+  );
+  const [currentLoggedInEmail, setCurrentLoggedInEmail] = useState<string>(initialSession?.email || '');
   
-  const [students, setStudents] = useState<Student[]>(initialStudents);
+  // Persistent Students Store
+  const [students, setStudents] = useState<Student[]>(() => {
+    try {
+      const saved = localStorage.getItem('dhaanish_hostel_students');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return deduplicateStudents(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to load students from localStorage', e);
+    }
+    return deduplicateStudents(initialStudents);
+  });
+
   const [blocks] = useState<BlockInfo[]>(initialBlocks);
   const [registeredStaff, setRegisteredStaff] = useState<RegisteredStaff[]>(() => {
     try {
@@ -240,11 +306,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>(() => {
     try {
       const saved = localStorage.getItem('dhaanish_registered_accounts');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return deduplicateAccounts([...defaultAccounts, ...parsed]);
+        }
+      }
     } catch (e) {
       console.warn('Failed to load user accounts from localStorage', e);
     }
-    return defaultAccounts;
+    return deduplicateAccounts(defaultAccounts);
   });
 
   // Persistent User Profiles
@@ -300,10 +371,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     ];
   });
 
-  // Save Notifications, Profiles & Accounts to localStorage
+  // LocalStorage Persistence Effects
   useEffect(() => {
     try {
-      localStorage.setItem('dhaanish_registered_accounts', JSON.stringify(userAccounts));
+      localStorage.setItem('dhaanish_hostel_students', JSON.stringify(deduplicateStudents(students)));
+    } catch (e) {
+      console.warn('LocalStorage save error for students', e);
+    }
+  }, [students]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('dhaanish_registered_accounts', JSON.stringify(deduplicateAccounts(userAccounts)));
     } catch (e) {
       console.warn('LocalStorage save error for user accounts', e);
     }
@@ -332,6 +411,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.warn('LocalStorage save error for registered staff', e);
     }
   }, [registeredStaff]);
+
+  // Persist Active Auth Session
+  useEffect(() => {
+    try {
+      if (isAuthenticated) {
+        localStorage.setItem('dhaanish_auth_session', JSON.stringify({
+          isAuthenticated: true,
+          role,
+          email: currentLoggedInEmail,
+          activeView
+        }));
+      } else {
+        localStorage.removeItem('dhaanish_auth_session');
+      }
+    } catch (e) {
+      console.warn('LocalStorage save error for auth session', e);
+    }
+  }, [isAuthenticated, role, currentLoggedInEmail, activeView]);
 
   // Sync initial API Data
   useEffect(() => {
@@ -406,6 +503,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const currentProfile = userProfiles[role] || defaultProfiles[role];
 
+  // Pre-register account credentials immediately during Step 1 / OTP phase
+  const preRegisterAccount = (email: string, password: string, accountRole: UserRole = 'Student', name: string = 'Resident User') => {
+    if (!email || !email.includes('@')) return;
+    const cleanEmail = email.trim().toLowerCase();
+
+    const newAcc: UserAccount = {
+      email: cleanEmail,
+      password: password,
+      role: accountRole,
+      name: name,
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+
+    setUserAccounts(prev => deduplicateAccounts([newAcc, ...prev]));
+  };
+
   // STRICT PASSWORD AUTHENTICATION LOGIN
   const login = (
     email: string, 
@@ -419,6 +532,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setRole('Admin');
       setIsAuthenticated(true);
       setActiveView('dashboard');
+      setCurrentLoggedInEmail(cleanEmail);
       apiLogin(email, 'Admin').catch(() => {});
       return { success: true };
     }
@@ -441,9 +555,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // 4. Authenticate & Sync Active Profile
+    // 4. Authenticate & Sync Active Profile & Session
     const targetRole = account.role;
     setRole(targetRole);
+    setIsAuthenticated(true);
+    setActiveView('dashboard');
+    setCurrentLoggedInEmail(cleanEmail);
 
     if (targetRole === 'Student') {
       const matchedStudent = students.find(s => s.email.toLowerCase() === cleanEmail);
@@ -462,8 +579,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         });
       } else {
         updateUserProfile({
-          id: 'STU-NEW',
-          name: account.name,
+          id: `STU-${Date.now().toString().slice(-4)}`,
+          name: account.name || 'Student Resident',
           email: account.email,
           phone: '+91 98401 23456',
           role: 'Student',
@@ -477,54 +594,71 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     apiLogin(email, targetRole).catch(() => {});
-    setIsAuthenticated(true);
-    setActiveView('dashboard');
     return { success: true };
   };
 
   const logout = () => {
     setIsAuthenticated(false);
     setActiveView('login');
+    setCurrentLoggedInEmail('');
+    try {
+      localStorage.removeItem('dhaanish_auth_session');
+    } catch (e) {
+      console.warn('Failed to clear auth session', e);
+    }
   };
 
   const registerStaff = (newStaffData: Partial<RegisteredStaff> & { password?: string }): RegisteredStaff => {
+    const cleanEmail = (newStaffData.email || 'staff@dhaanish.in').trim().toLowerCase();
+    
+    const existingStaff = registeredStaff.find(s => s.email.trim().toLowerCase() === cleanEmail);
     const newStaff: RegisteredStaff = {
-      id: `STF-0${registeredStaff.length + 1}`,
-      name: newStaffData.name || 'New Staff',
-      email: newStaffData.email || 'staff@dhaanish.in',
-      role: newStaffData.role || 'Warden',
-      staffId: newStaffData.staffId || `STF${Math.floor(100 + Math.random() * 900)}`,
-      phone: newStaffData.phone || '+91 90000 00000',
-      assignedBlock: newStaffData.assignedBlock,
-      assignedDept: newStaffData.assignedDept,
-      designation: newStaffData.designation || (newStaffData.role === 'Warden' ? 'Block Warden' : 'Class Coordinator'),
-      joinDate: new Date().toISOString().split('T')[0],
+      id: existingStaff ? existingStaff.id : `STF-0${registeredStaff.length + 1}`,
+      name: newStaffData.name || existingStaff?.name || 'New Staff',
+      email: cleanEmail,
+      role: newStaffData.role || existingStaff?.role || 'Warden',
+      staffId: newStaffData.staffId || existingStaff?.staffId || `STF${Math.floor(100 + Math.random() * 900)}`,
+      phone: newStaffData.phone || existingStaff?.phone || '+91 90000 00000',
+      assignedBlock: newStaffData.assignedBlock || existingStaff?.assignedBlock,
+      assignedDept: newStaffData.assignedDept || existingStaff?.assignedDept,
+      designation: newStaffData.designation || existingStaff?.designation || (newStaffData.role === 'Warden' ? 'Block Warden' : 'Class Coordinator'),
+      joinDate: existingStaff?.joinDate || new Date().toISOString().split('T')[0],
     };
 
-    setRegisteredStaff(prev => [newStaff, ...prev]);
+    setRegisteredStaff(prev => {
+      const filtered = prev.filter(s => s.email.trim().toLowerCase() !== cleanEmail);
+      return [newStaff, ...filtered];
+    });
     apiRegisterStaff(newStaff).catch(() => {});
 
     // Save persistent staff credentials
-    if (newStaff.email && newStaffData.password) {
+    if (cleanEmail && newStaffData.password) {
       const newAcc: UserAccount = {
-        email: newStaff.email.trim(),
+        email: cleanEmail,
         password: newStaffData.password,
         role: newStaff.role,
         name: newStaff.name,
         createdAt: new Date().toISOString().split('T')[0],
       };
-      setUserAccounts(prev => [newAcc, ...prev.filter(a => a.email.toLowerCase() !== newAcc.email.toLowerCase())]);
+      setUserAccounts(prev => deduplicateAccounts([newAcc, ...prev]));
     }
+
+    // Auto log-in & set persistent session
+    setIsAuthenticated(true);
+    setRole(newStaff.role);
+    setActiveView('dashboard');
+    setCurrentLoggedInEmail(cleanEmail);
 
     return newStaff;
   };
 
   const assignWardenToBlock = (data: { name: string; email: string; phone: string; password?: string; assignedBlock: HostelBlock; designation?: string }) => {
+    const cleanEmail = data.email.trim().toLowerCase();
     const existingIndex = registeredStaff.findIndex(s => s.role === 'Warden' && s.assignedBlock === data.assignedBlock);
     const updatedWarden: RegisteredStaff = {
       id: existingIndex >= 0 ? registeredStaff[existingIndex].id : `STF-W-${Date.now()}`,
       name: data.name,
-      email: data.email.trim(),
+      email: cleanEmail,
       role: 'Warden',
       staffId: existingIndex >= 0 ? registeredStaff[existingIndex].staffId : `WRD-${Math.floor(100 + Math.random() * 900)}`,
       phone: data.phone,
@@ -538,15 +672,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return [...filtered, updatedWarden];
     });
 
-    if (data.email) {
+    if (cleanEmail) {
       const newAcc: UserAccount = {
-        email: data.email.trim(),
+        email: cleanEmail,
         password: data.password || 'warden123',
         role: 'Warden',
         name: data.name,
         createdAt: new Date().toISOString().split('T')[0],
       };
-      setUserAccounts(prev => [newAcc, ...prev.filter(a => a.email.toLowerCase() !== newAcc.email.toLowerCase())]);
+      setUserAccounts(prev => deduplicateAccounts([newAcc, ...prev]));
     }
   };
 
@@ -555,29 +689,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const registerStudent = (newStudentData: Partial<Student> & { password?: string }): Student => {
-    const newId = `STU-00${students.length + 1}`;
-    const hostelId = `HST00${students.length + 1}`;
+    const cleanEmail = (newStudentData.email || 'student@dhaanish.in').trim().toLowerCase();
+    const cleanRegNo = (newStudentData.regNo || '26CSE0000').trim().toUpperCase();
+
+    // Check for existing student record by email or regNo
+    const existingStudent = students.find(
+      s => s.email.trim().toLowerCase() === cleanEmail || s.regNo.trim().toUpperCase() === cleanRegNo
+    );
+
+    const studentId = existingStudent ? existingStudent.id : `STU-00${students.length + 1}`;
+    const hostelId = existingStudent ? existingStudent.hostelId : `HST00${students.length + 1}`;
     
-    const newStudent: Student = {
-      id: newId,
-      name: newStudentData.name || 'New Student',
-      regNo: newStudentData.regNo || '26CSE0000',
-      department: newStudentData.department || 'CSE',
-      year: newStudentData.year || '1st Year',
-      block: newStudentData.block || 'Block A',
-      floor: newStudentData.floor || '1st Floor',
-      room: newStudentData.room || 'A-101',
+    const updatedStudent: Student = {
+      id: studentId,
+      name: newStudentData.name || existingStudent?.name || 'New Student',
+      regNo: cleanRegNo,
+      department: newStudentData.department || existingStudent?.department || 'CSE',
+      year: newStudentData.year || existingStudent?.year || '1st Year',
+      block: newStudentData.block || existingStudent?.block || 'Block A',
+      floor: newStudentData.floor || existingStudent?.floor || '1st Floor',
+      room: newStudentData.room || existingStudent?.room || 'A-101',
       bedNo: `${newStudentData.room || 'A-101'}-1`,
       hostelId: hostelId,
-      photoUrl: newStudentData.photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
-      email: newStudentData.email || 'student@dhaanish.in',
-      phone: newStudentData.phone || '+91 98000 00000',
-      parentName: newStudentData.parentName || 'Parent Name',
-      parentContact: newStudentData.parentContact || '+91 98000 11111',
-      status: 'Present',
-      verificationStatus: 'Pending Verification',
-      joinDate: new Date().toISOString().split('T')[0],
-      activityHistory: [
+      photoUrl: newStudentData.photoUrl || existingStudent?.photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+      email: cleanEmail,
+      phone: newStudentData.phone || existingStudent?.phone || '+91 98000 00000',
+      parentName: newStudentData.parentName || existingStudent?.parentName || 'Parent Name',
+      parentContact: newStudentData.parentContact || existingStudent?.parentContact || '+91 98000 11111',
+      status: existingStudent?.status || 'Present',
+      verificationStatus: existingStudent?.verificationStatus || 'Pending Verification',
+      joinDate: existingStudent?.joinDate || new Date().toISOString().split('T')[0],
+      activityHistory: existingStudent?.activityHistory || [
         {
           id: `ACT-${Date.now()}`,
           type: 'Request',
@@ -589,54 +731,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ]
     };
 
-    setStudents(prev => [newStudent, ...prev]);
-    apiRegisterStudent(newStudent).catch(() => {});
+    setStudents(prev => deduplicateStudents([updatedStudent, ...prev]));
+    apiRegisterStudent(updatedStudent).catch(() => {});
 
     // Save persistent student credentials
-    if (newStudent.email && newStudentData.password) {
+    if (cleanEmail && newStudentData.password) {
       const newAcc: UserAccount = {
-        email: newStudent.email.trim(),
+        email: cleanEmail,
         password: newStudentData.password,
         role: 'Student',
-        name: newStudent.name,
+        name: updatedStudent.name,
         createdAt: new Date().toISOString().split('T')[0],
       };
-      setUserAccounts(prev => [newAcc, ...prev.filter(a => a.email.toLowerCase() !== newAcc.email.toLowerCase())]);
+      setUserAccounts(prev => deduplicateAccounts([newAcc, ...prev]));
     }
 
     // Sync newly registered student into userProfiles.Student
     updateUserProfile({
-      id: newStudent.id,
-      name: newStudent.name,
-      email: newStudent.email,
-      phone: newStudent.phone,
+      id: updatedStudent.id,
+      name: updatedStudent.name,
+      email: updatedStudent.email,
+      phone: updatedStudent.phone,
       role: 'Student',
-      photoUrl: newStudent.photoUrl,
-      department: newStudent.department,
-      year: newStudent.year,
-      block: newStudent.block,
-      room: newStudent.room
+      photoUrl: updatedStudent.photoUrl,
+      department: updatedStudent.department,
+      year: updatedStudent.year,
+      block: updatedStudent.block,
+      room: updatedStudent.room
     });
+
+    // Auto log-in & set persistent session
+    setIsAuthenticated(true);
+    setRole('Student');
+    setActiveView('dashboard');
+    setCurrentLoggedInEmail(cleanEmail);
 
     // REAL-TIME NOTIFICATION: Alert Warden & CC about new student registration
     addNotification({
       recipientRole: 'Warden',
       title: 'New Student Registration Submitted',
-      message: `Student ${newStudent.name} (${newStudent.regNo}) registered for ${newStudent.block} Room ${newStudent.room}. Verification required.`,
+      message: `Student ${updatedStudent.name} (${updatedStudent.regNo}) registered for ${updatedStudent.block} Room ${updatedStudent.room}. Verification required.`,
       category: 'registration',
       actionView: 'registry',
-      relatedId: newStudent.id,
+      relatedId: updatedStudent.id,
     });
     addNotification({
       recipientRole: 'CC',
       title: 'New Student Registered',
-      message: `${newStudent.name} (${newStudent.regNo}) joined ${newStudent.department} department.`,
+      message: `${updatedStudent.name} (${updatedStudent.regNo}) joined ${updatedStudent.department} department.`,
       category: 'registration',
       actionView: 'registry',
-      relatedId: newStudent.id,
+      relatedId: updatedStudent.id,
     });
 
-    return newStudent;
+    return updatedStudent;
   };
 
   const approveStudentVerification = (studentId: string) => {
@@ -949,6 +1097,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         // User Accounts Store
         userAccounts,
+        preRegisterAccount,
 
         // Warden Management Methods
         assignWardenToBlock,
