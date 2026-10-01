@@ -213,7 +213,7 @@ function deduplicateAccounts(accounts: UserAccount[]): UserAccount[] {
   const map = new Map<string, UserAccount>();
   for (const acc of accounts) {
     if (!acc || !acc.email) continue;
-    const cleanEmail = acc.email.trim().toLowerCase();
+    const cleanEmail = String(acc.email).trim().toLowerCase();
     map.set(cleanEmail, {
       ...acc,
       email: cleanEmail
@@ -225,12 +225,15 @@ function deduplicateAccounts(accounts: UserAccount[]): UserAccount[] {
 function deduplicateStudents(studentList: Student[]): Student[] {
   const map = new Map<string, Student>();
   for (const s of studentList) {
-    if (!s || (!s.email && !s.regNo)) continue;
-    const key = (s.email ? s.email.trim().toLowerCase() : s.regNo.trim().toUpperCase());
+    if (!s || typeof s !== 'object') continue;
+    const emailKey = s.email ? String(s.email).trim().toLowerCase() : '';
+    const regNoKey = s.regNo ? String(s.regNo).trim().toUpperCase() : '';
+    if (!emailKey && !regNoKey) continue;
+    const key = emailKey || regNoKey;
     map.set(key, {
       ...s,
-      email: s.email ? s.email.trim().toLowerCase() : s.email,
-      regNo: s.regNo ? s.regNo.trim().toUpperCase() : s.regNo
+      email: emailKey || s.email || '',
+      regNo: regNoKey || s.regNo || ''
     });
   }
   return Array.from(map.values());
@@ -538,7 +541,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // 2. Strict Check in Persistent Accounts Store
-    const account = userAccounts.find(a => a.email.toLowerCase() === cleanEmail);
+    const account = userAccounts.find(a => Boolean(a?.email) && a.email.toLowerCase().trim() === cleanEmail);
     
     if (!account) {
       return { 
@@ -563,7 +566,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentLoggedInEmail(cleanEmail);
 
     if (targetRole === 'Student') {
-      const matchedStudent = students.find(s => s.email.toLowerCase() === cleanEmail);
+      const matchedStudent = students.find(s => Boolean(s?.email) && s.email.toLowerCase().trim() === cleanEmail);
       if (matchedStudent) {
         updateUserProfile({
           id: matchedStudent.id,
@@ -611,7 +614,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const registerStaff = (newStaffData: Partial<RegisteredStaff> & { password?: string }): RegisteredStaff => {
     const cleanEmail = (newStaffData.email || 'staff@dhaanish.in').trim().toLowerCase();
     
-    const existingStaff = registeredStaff.find(s => s.email.trim().toLowerCase() === cleanEmail);
+    const existingStaff = registeredStaff.find(s => Boolean(s?.email) && s.email.trim().toLowerCase() === cleanEmail);
     const newStaff: RegisteredStaff = {
       id: existingStaff ? existingStaff.id : `STF-0${registeredStaff.length + 1}`,
       name: newStaffData.name || existingStaff?.name || 'New Staff',
@@ -626,7 +629,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setRegisteredStaff(prev => {
-      const filtered = prev.filter(s => s.email.trim().toLowerCase() !== cleanEmail);
+      const filtered = prev.filter(s => Boolean(s?.email) && s.email.trim().toLowerCase() !== cleanEmail);
       return [newStaff, ...filtered];
     });
     apiRegisterStaff(newStaff).catch(() => {});
@@ -654,7 +657,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const assignWardenToBlock = (data: { name: string; email: string; phone: string; password?: string; assignedBlock: HostelBlock; designation?: string }) => {
     const cleanEmail = data.email.trim().toLowerCase();
-    const existingIndex = registeredStaff.findIndex(s => s.role === 'Warden' && s.assignedBlock === data.assignedBlock);
+    const existingIndex = registeredStaff.findIndex(s => Boolean(s) && s.role === 'Warden' && s.assignedBlock === data.assignedBlock);
     const updatedWarden: RegisteredStaff = {
       id: existingIndex >= 0 ? registeredStaff[existingIndex].id : `STF-W-${Date.now()}`,
       name: data.name,
@@ -668,7 +671,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     setRegisteredStaff(prev => {
-      const filtered = prev.filter(s => !(s.role === 'Warden' && s.assignedBlock === data.assignedBlock));
+      const filtered = prev.filter(s => Boolean(s) && !(s.role === 'Warden' && s.assignedBlock === data.assignedBlock));
       return [...filtered, updatedWarden];
     });
 
@@ -685,16 +688,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const removeWardenFromBlock = (block: HostelBlock) => {
-    setRegisteredStaff(prev => prev.filter(s => !(s.role === 'Warden' && s.assignedBlock === block)));
+    setRegisteredStaff(prev => prev.filter(s => Boolean(s) && !(s.role === 'Warden' && s.assignedBlock === block)));
   };
 
   const registerStudent = (newStudentData: Partial<Student> & { password?: string }): Student => {
     const cleanEmail = (newStudentData.email || 'student@dhaanish.in').trim().toLowerCase();
     const cleanRegNo = (newStudentData.regNo || '26CSE0000').trim().toUpperCase();
 
-    // Check for existing student record by email or regNo
+    // Safely check for existing student record by email or regNo
     const existingStudent = students.find(
-      s => s.email.trim().toLowerCase() === cleanEmail || s.regNo.trim().toUpperCase() === cleanRegNo
+      s => Boolean(s) && (
+        (Boolean(s.email) && String(s.email).trim().toLowerCase() === cleanEmail) || 
+        (Boolean(s.regNo) && String(s.regNo).trim().toUpperCase() === cleanRegNo)
+      )
     );
 
     const studentId = existingStudent ? existingStudent.id : `STU-00${students.length + 1}`;
