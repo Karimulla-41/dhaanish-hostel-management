@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   Building2, 
@@ -12,7 +12,9 @@ import {
   Edit3,
   ArrowUpCircle,
   LogOut,
-  X
+  X,
+  ChevronDown,
+  Layers
 } from 'lucide-react';
 import type { HostelBlock, BlockStatus } from '../../types';
 
@@ -34,9 +36,40 @@ interface EditableBlock {
 }
 
 export const AdminDashboard: React.FC = () => {
-  const { students, registeredStaff, assignWardenToBlock, removeWardenFromBlock, logout } = useAuth();
+  const { 
+    students, 
+    registeredStaff, 
+    userAccounts, 
+    assignWardenToBlock, 
+    removeWardenFromBlock, 
+    logout 
+  } = useAuth();
 
-  // Compute Warden List directly from persistent registeredStaff
+  // Extract all registered Wardens in the system database (from registeredStaff & userAccounts)
+  const registeredWardensList = Array.from(
+    new Map(
+      [
+        ...registeredStaff
+          .filter(s => s.role === 'Warden')
+          .map(s => ({
+            name: s.name,
+            email: s.email.trim().toLowerCase(),
+            phone: s.phone || '+91 94440 98765',
+            designation: s.designation || `Block Warden`,
+          })),
+        ...userAccounts
+          .filter(a => a.role === 'Warden')
+          .map(a => ({
+            name: a.name || 'Hostel Warden',
+            email: a.email.trim().toLowerCase(),
+            phone: '+91 94440 98765',
+            designation: 'Hostel Block Warden',
+          }))
+      ].map(w => [w.email.toLowerCase().trim(), w])
+    ).values()
+  );
+
+  // Compute Warden Allocation List directly from persistent registeredStaff
   const blocks: HostelBlock[] = ['Block A', 'Block B', 'Block C', 'Block D', 'Block E', 'Block F'];
   const wardenList: WardenRecord[] = blocks.map(b => {
     const assigned = registeredStaff.find(s => s.role === 'Warden' && s.assignedBlock === b);
@@ -58,30 +91,56 @@ export const AdminDashboard: React.FC = () => {
     };
   });
 
-  // Block Capacity & Status State
-  const [blockList, setBlockList] = useState<EditableBlock[]>([
-    { name: 'Block A', status: 'Active', capacity: 120, occupied: 0, floors: 4, description: 'Senior Boys Residence - Engineering Departments' },
-    { name: 'Block B', status: 'Active', capacity: 140, occupied: 0, floors: 4, description: 'Junior Boys Residence - First & Second Year' },
-    { name: 'Block C', status: 'Active', capacity: 100, occupied: 0, floors: 3, description: 'Girls Residence Block 1 - All Departments' },
-    { name: 'Block D', status: 'Active', capacity: 120, occupied: 0, floors: 4, description: 'Girls Residence Block 2 - Post Graduates & Final Year' },
-    { name: 'Block E', status: 'Active', capacity: 80, occupied: 0, floors: 3, description: 'International & Research Scholar Wing' },
-    { name: 'Block F', status: 'Under Construction', capacity: 160, occupied: 0, floors: 5, description: 'New Executive Hostel Complex (Target Completion: Q2 2027)' },
-  ]);
+  // Block Capacity, Floors & Status State starting at 0 baseline (Admin Configured)
+  const [blockList, setBlockList] = useState<EditableBlock[]>(() => {
+    try {
+      const saved = localStorage.getItem('dhaanish_hostel_block_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {
+      console.warn('Failed to load block config from localStorage', e);
+    }
+    return [
+      { name: 'Block A', status: 'Active', capacity: 0, occupied: 0, floors: 0, description: 'Senior Boys Residence - Engineering Wing' },
+      { name: 'Block B', status: 'Active', capacity: 0, occupied: 0, floors: 0, description: 'Junior Boys Residence - First & Second Year' },
+      { name: 'Block C', status: 'Active', capacity: 0, occupied: 0, floors: 0, description: 'Boys Residence Block C - All Departments' },
+      { name: 'Block D', status: 'Active', capacity: 0, occupied: 0, floors: 0, description: 'Boys Residence Block D - Post Graduates & Final Year' },
+      { name: 'Block E', status: 'Active', capacity: 0, occupied: 0, floors: 0, description: 'Boys Residence Block E - International & Research Wing' },
+      { name: 'Block F', status: 'Under Construction', capacity: 0, occupied: 0, floors: 0, description: 'Executive Boys Hostel Complex (Target Completion: Q2 2027)' },
+    ];
+  });
+
+  // Save block configurations to localStorage whenever updated
+  useEffect(() => {
+    try {
+      localStorage.setItem('dhaanish_hostel_block_config', JSON.stringify(blockList));
+    } catch (e) {
+      console.warn('Failed to save block config to localStorage', e);
+    }
+  }, [blockList]);
 
   // Modals state
   const [showWardenModal, setShowWardenModal] = useState(false);
   const [editingWardenBlock, setEditingWardenBlock] = useState<HostelBlock>('Block A');
+  const [selectedWardenEmail, setSelectedWardenEmail] = useState<string>('');
+  const [isManualInput, setIsManualInput] = useState<boolean>(false);
+
   const [wardenNameInput, setWardenNameInput] = useState('');
   const [wardenDesignationInput, setWardenDesignationInput] = useState('');
   const [wardenPhoneInput, setWardenPhoneInput] = useState('');
   const [wardenEmailInput, setWardenEmailInput] = useState('');
   const [wardenPasswordInput, setWardenPasswordInput] = useState('');
 
+  // Block Capacity & Floors Modal state
   const [showCapacityModal, setShowCapacityModal] = useState(false);
   const [editingBlockName, setEditingBlockName] = useState<HostelBlock>('Block A');
-  const [capacityInput, setCapacityInput] = useState<number>(120);
+  const [capacityInput, setCapacityInput] = useState<number>(0);
+  const [floorsInput, setFloorsInput] = useState<number>(0);
+  const [descriptionInput, setDescriptionInput] = useState<string>('');
 
-  // Compute live metrics
+  // Compute live metrics dynamically
   const totalCapacity = blockList.reduce((acc, b) => acc + b.capacity, 0);
   const totalOccupied = students.length;
   const availableBeds = Math.max(0, totalCapacity - totalOccupied);
@@ -91,29 +150,44 @@ export const AdminDashboard: React.FC = () => {
   // Warden Handlers
   const handleOpenAssignModal = (w: WardenRecord) => {
     setEditingWardenBlock(w.block);
-    setWardenNameInput(w.warden === 'Unassigned / Vacant' ? '' : w.warden);
-    setWardenDesignationInput(w.designation === 'Vacant Post' ? `Block Warden (${w.block})` : w.designation);
-    setWardenPhoneInput(w.phone === 'N/A' ? '' : w.phone);
-    setWardenEmailInput(w.email === 'unassigned@dhaanish.in' ? '' : w.email);
+    const existingEmail = w.email === 'unassigned@dhaanish.in' ? '' : w.email;
+    setSelectedWardenEmail(existingEmail);
+    setIsManualInput(false);
+
+    if (existingEmail) {
+      const found = registeredWardensList.find(r => r.email.toLowerCase() === existingEmail.toLowerCase());
+      setWardenNameInput(w.warden === 'Unassigned / Vacant' ? '' : w.warden);
+      setWardenDesignationInput(w.designation === 'Vacant Post' ? `Block Warden (${w.block})` : w.designation);
+      setWardenPhoneInput(w.phone === 'N/A' ? (found?.phone || '') : w.phone);
+      setWardenEmailInput(existingEmail);
+    } else {
+      setWardenNameInput('');
+      setWardenDesignationInput(`Block Warden (${w.block})`);
+      setWardenPhoneInput('');
+      setWardenEmailInput('');
+    }
     setWardenPasswordInput('warden123');
     setShowWardenModal(true);
   };
 
   const handleSaveWarden = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!wardenNameInput.trim() || !wardenEmailInput.trim()) return;
+    if (!wardenNameInput.trim() || !wardenEmailInput.trim()) {
+      alert('Please select or enter a Warden name and email address.');
+      return;
+    }
 
     assignWardenToBlock({
       name: wardenNameInput.trim(),
-      email: wardenEmailInput.trim(),
-      phone: wardenPhoneInput.trim() || '+91 90000 00000',
+      email: wardenEmailInput.trim().toLowerCase(),
+      phone: wardenPhoneInput.trim() || '+91 94440 98765',
       password: wardenPasswordInput.trim() || 'warden123',
       assignedBlock: editingWardenBlock,
       designation: wardenDesignationInput.trim() || `Block Warden (${editingWardenBlock})`,
     });
 
     setShowWardenModal(false);
-    alert(`Warden ${wardenNameInput} successfully assigned to ${editingWardenBlock}! Credentials saved for login.`);
+    alert(`Warden ${wardenNameInput} successfully assigned to ${editingWardenBlock}! Record updated in system database.`);
   };
 
   const handleRemoveWarden = (block: HostelBlock) => {
@@ -123,7 +197,7 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Block Handlers
+  // Block Capacity & Floor Handlers
   const handleUpgradeBlockStatus = (blockName: HostelBlock) => {
     setBlockList(prev => prev.map(b => {
       if (b.name === blockName) {
@@ -132,7 +206,7 @@ export const AdminDashboard: React.FC = () => {
         return {
           ...b,
           status: newStatus,
-          description: newStatus === 'Active' ? 'Active Residential Block - Operations Live' : 'Under Construction (Expansion Wing)'
+          description: newStatus === 'Active' ? 'Active Boys Residence Block' : 'Under Construction (Expansion Wing)'
         };
       }
       return b;
@@ -142,15 +216,27 @@ export const AdminDashboard: React.FC = () => {
   const handleOpenCapacityModal = (b: EditableBlock) => {
     setEditingBlockName(b.name);
     setCapacityInput(b.capacity);
+    setFloorsInput(b.floors);
+    setDescriptionInput(b.description);
     setShowCapacityModal(true);
   };
 
   const handleSaveCapacity = (e: React.FormEvent) => {
     e.preventDefault();
-    if (capacityInput <= 0) return;
-    setBlockList(prev => prev.map(b => b.name === editingBlockName ? { ...b, capacity: Number(capacityInput) } : b));
+    if (capacityInput < 0 || floorsInput < 0) {
+      alert('Capacity and floor counts cannot be negative.');
+      return;
+    }
+
+    setBlockList(prev => prev.map(b => b.name === editingBlockName ? {
+      ...b,
+      capacity: Number(capacityInput),
+      floors: Number(floorsInput),
+      description: descriptionInput.trim() || b.description
+    } : b));
+
     setShowCapacityModal(false);
-    alert(`Bed capacity for ${editingBlockName} updated to ${capacityInput} beds!`);
+    alert(`Block configuration for ${editingBlockName} updated to ${capacityInput} beds and ${floorsInput} floors!`);
   };
 
   return (
@@ -162,7 +248,6 @@ export const AdminDashboard: React.FC = () => {
           <ShieldCheck className="w-4.5 h-4.5 text-navy-700" />
           <span>CENTRAL CAMPUS EXECUTIVE ADMINISTRATION PORTAL</span>
         </div>
-
         <button
           onClick={logout}
           className="text-red-700 font-bold flex items-center space-x-1 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded border border-red-200 transition"
@@ -190,7 +275,7 @@ export const AdminDashboard: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-neutral-600 mt-1">
-                Executive Directorate — Warden Staff Allocation, Bed Capacity Counts, & Block Infrastructure Upgrades
+                Executive Directorate — Warden Staff Allocations, Bed Capacity Counts, & Boys Hostel Infrastructure
               </p>
             </div>
           </div>
@@ -208,7 +293,7 @@ export const AdminDashboard: React.FC = () => {
             <div>
               <p className="text-[11px] font-bold text-neutral-500 uppercase">Total Institutional Capacity</p>
               <p className="text-2xl font-bold text-navy-900 mt-1">{totalCapacity} Beds</p>
-              <p className="text-[10px] text-neutral-400 mt-0.5">Across Blocks A to F</p>
+              <p className="text-[10px] text-neutral-400 mt-0.5">Admin-configured limit across Blocks A to F</p>
             </div>
             <div className="w-11 h-11 rounded-xl bg-navy-700 text-amber-300 shadow flex items-center justify-center shrink-0">
               <Building2 className="w-6 h-6" />
@@ -239,9 +324,9 @@ export const AdminDashboard: React.FC = () => {
 
           <div className="bg-white p-4 rounded-xl border border-neutral-300 shadow-md flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-bold text-amber-900 uppercase">Residential Wings Status</p>
+              <p className="text-[11px] font-bold text-amber-900 uppercase">Boys Residential Wings Status</p>
               <p className="text-2xl font-bold text-navy-900 mt-1">{activeBlocks.length} Active / {constructionBlocks.length} Expansion</p>
-              <p className="text-[10px] text-amber-800 mt-0.5">Block F under construction</p>
+              <p className="text-[10px] text-amber-800 mt-0.5">All residential blocks designated for Boys</p>
             </div>
             <div className="w-11 h-11 rounded-xl bg-amber-100 text-amber-900 border border-amber-300 flex items-center justify-center shrink-0">
               <HardHat className="w-6 h-6" />
@@ -250,7 +335,7 @@ export const AdminDashboard: React.FC = () => {
 
         </div>
 
-        {/* SECTION 1: WARDEN MANAGEMENT (ASSIGNING & REMOVING WARDENS) */}
+        {/* SECTION 1: WARDEN MANAGEMENT (ASSIGNING & REMOVING WARDENS VIA DROPDOWN) */}
         <div className="bg-white rounded-xl border border-neutral-300 shadow-xl overflow-hidden">
           <div className="p-4 bg-navy-50 border-b border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
@@ -258,8 +343,11 @@ export const AdminDashboard: React.FC = () => {
                 <ShieldCheck className="w-4.5 h-4.5 text-navy-700" />
                 <span>1. HOSTEL WARDEN ASSIGNMENT & STAFF MANAGEMENT REGISTRY</span>
               </h2>
-              <p className="text-neutral-500 text-[11px]">Assign new Wardens, reassign staff allocations, or remove Wardens from residential blocks.</p>
+              <p className="text-neutral-500 text-[11px]">Select registered Wardens from system database dropdown to assign to Boys Hostel blocks.</p>
             </div>
+            <span className="text-[10px] font-bold bg-navy-100 text-navy-900 px-2.5 py-1 rounded-full border border-navy-300 shrink-0 w-fit">
+              {registeredWardensList.length} Registered Warden(s) in System
+            </span>
           </div>
 
           <div className="overflow-x-auto">
@@ -328,15 +416,15 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* SECTION 2: BLOCK CAPACITY COUNTS & UPGRADES MANAGEMENT */}
+        {/* SECTION 2: BLOCK CAPACITY COUNTS, FLOORS & INFRASTRUCTURE CONFIGURATION */}
         <div className="bg-white rounded-xl border border-neutral-300 shadow-xl overflow-hidden">
           <div className="p-4 bg-navy-50 border-b border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="font-bold text-navy-900 text-sm flex items-center space-x-2">
                 <Building2 className="w-4.5 h-4.5 text-navy-700" />
-                <span>2. RESIDENTIAL BLOCKS CAPACITY COUNTS & INFRASTRUCTURE UPGRADES</span>
+                <span>2. BOYS RESIDENTIAL BLOCKS CAPACITY, FLOORS & INFRASTRUCTURE</span>
               </h2>
-              <p className="text-neutral-500 text-[11px]">Enter bed capacity counts, update room allocations, and upgrade block construction status.</p>
+              <p className="text-neutral-500 text-[11px]">Set total bed capacity counts, floor limits, and upgrade construction status for Boys Hostel blocks.</p>
             </div>
           </div>
 
@@ -356,7 +444,8 @@ export const AdminDashboard: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-neutral-200">
                 {blockList.map(b => {
-                  const avail = Math.max(0, b.capacity - b.occupied);
+                  const blockOccupied = students.filter(s => s.block === b.name).length;
+                  const avail = Math.max(0, b.capacity - blockOccupied);
                   return (
                     <tr key={b.name} className="hover:bg-neutral-50 text-neutral-800 transition">
                       <td className="p-3 font-bold text-navy-900 text-sm">{b.name}</td>
@@ -374,15 +463,25 @@ export const AdminDashboard: React.FC = () => {
                         )}
                       </td>
                       <td className="p-3 font-mono font-bold text-navy-900 text-sm">
-                        {b.capacity} Beds
+                        {b.capacity === 0 ? (
+                          <span className="text-neutral-400 font-normal italic">0 Beds (Unset)</span>
+                        ) : (
+                          <span>{b.capacity} Beds</span>
+                        )}
                       </td>
                       <td className="p-3 font-mono text-emerald-700 font-bold">
-                        {b.occupied}
+                        {blockOccupied}
                       </td>
                       <td className="p-3 font-mono text-blue-700 font-bold">
                         {avail}
                       </td>
-                      <td className="p-3 font-mono">{b.floors} Floors</td>
+                      <td className="p-3 font-mono font-bold text-navy-900">
+                        {b.floors === 0 ? (
+                          <span className="text-neutral-400 font-normal italic">0 Floors</span>
+                        ) : (
+                          <span>{b.floors} Floors</span>
+                        )}
+                      </td>
                       <td className="p-3 text-neutral-600 max-w-xs">{b.description}</td>
                       <td className="p-3 text-right space-x-1.5 shrink-0">
                         <button
@@ -390,7 +489,7 @@ export const AdminDashboard: React.FC = () => {
                           className="bg-navy-50 hover:bg-navy-100 text-navy-900 font-bold px-2.5 py-1 rounded text-[11px] border border-navy-300 inline-flex items-center space-x-1"
                         >
                           <Edit3 className="w-3.5 h-3.5 text-navy-700" />
-                          <span>Enter Bed Count</span>
+                          <span>Configure Capacity & Floors</span>
                         </button>
 
                         <button
@@ -415,82 +514,143 @@ export const AdminDashboard: React.FC = () => {
 
       </div>
 
-      {/* MODAL 1: ASSIGN / EDIT WARDEN */}
+      {/* MODAL 1: ASSIGN / EDIT WARDEN (DROPDOWN SELECTION FROM DATABASE) */}
       {showWardenModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 text-xs font-sans">
           <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl border border-neutral-300 space-y-4">
             <div className="flex justify-between items-center border-b border-neutral-200 pb-3">
-              <h3 className="font-bold text-navy-900 text-sm">
-                Assign Warden to {editingWardenBlock}
-              </h3>
+              <div>
+                <h3 className="font-bold text-navy-900 text-sm">
+                  Assign Warden to {editingWardenBlock}
+                </h3>
+                <p className="text-[11px] text-neutral-500 mt-0.5">Select a registered Warden from the database dropdown.</p>
+              </div>
               <button onClick={() => setShowWardenModal(false)} className="text-neutral-400 hover:text-neutral-800 font-bold">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveWarden} className="space-y-3">
+            <form onSubmit={handleSaveWarden} className="space-y-4">
+              
+              {/* Warden Selection Dropdown */}
               <div>
-                <label className="block font-semibold text-neutral-700 mb-1">Warden Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Dr. Senthil Kumar"
-                  value={wardenNameInput}
-                  onChange={(e) => setWardenNameInput(e.target.value)}
-                  className="w-full p-2 border border-neutral-300 rounded focus:ring-1 focus:ring-navy-600"
-                />
+                <label className="block font-semibold text-navy-900 mb-1 flex items-center justify-between">
+                  <span>Select Registered Warden (Database Registry)</span>
+                  <span className="text-[10px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    Live System Wardens
+                  </span>
+                </label>
+                
+                <div className="relative">
+                  <select
+                    value={isManualInput ? '__NEW__' : selectedWardenEmail}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '__NEW__') {
+                        setIsManualInput(true);
+                        setSelectedWardenEmail('');
+                        setWardenNameInput('');
+                        setWardenEmailInput('');
+                        setWardenPhoneInput('');
+                        setWardenDesignationInput(`Block Warden (${editingWardenBlock})`);
+                        setWardenPasswordInput('warden123');
+                      } else {
+                        setIsManualInput(false);
+                        setSelectedWardenEmail(val);
+                        const matched = registeredWardensList.find(w => w.email.toLowerCase() === val.toLowerCase());
+                        if (matched) {
+                          setWardenNameInput(matched.name);
+                          setWardenEmailInput(matched.email);
+                          setWardenPhoneInput(matched.phone);
+                          setWardenDesignationInput(matched.designation || `Block Warden (${editingWardenBlock})`);
+                          setWardenPasswordInput('warden123');
+                        }
+                      }
+                    }}
+                    className="w-full p-2.5 pr-8 border-2 border-navy-600 rounded font-bold text-navy-900 bg-navy-50/40 focus:ring-2 focus:ring-navy-600 focus:outline-none appearance-none"
+                  >
+                    <option value="">-- Choose Registered Warden from Dropdown --</option>
+                    {registeredWardensList.map((w) => (
+                      <option key={w.email} value={w.email}>
+                        👤 {w.name} ({w.email})
+                      </option>
+                    ))}
+                    <option value="__NEW__">➕ Add & Register New Warden Manually</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-navy-700 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                {registeredWardensList.length === 0 && (
+                  <p className="text-[10px] text-amber-800 bg-amber-50 p-2 rounded border border-amber-200 mt-1.5">
+                    💡 No Wardens have registered via Staff Sign Up yet. You can select "Add & Register New Warden Manually" below to create a Warden account now.
+                  </p>
+                )}
               </div>
 
-              <div>
-                <label className="block font-semibold text-neutral-700 mb-1">Official Designation</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Chief Warden (Senior Boys Wing)"
-                  value={wardenDesignationInput}
-                  onChange={(e) => setWardenDesignationInput(e.target.value)}
-                  className="w-full p-2 border border-neutral-300 rounded"
-                />
+              {/* Display / Edit Form Fields */}
+              <div className="space-y-3 pt-1 border-t border-neutral-200">
+                <div>
+                  <label className="block font-semibold text-neutral-700 mb-1">Warden Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Select from dropdown above or enter name"
+                    value={wardenNameInput}
+                    onChange={(e) => setWardenNameInput(e.target.value)}
+                    className="w-full p-2 border border-neutral-300 rounded focus:ring-1 focus:ring-navy-600 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-neutral-700 mb-1">Official Designation</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Block Warden"
+                    value={wardenDesignationInput}
+                    onChange={(e) => setWardenDesignationInput(e.target.value)}
+                    className="w-full p-2 border border-neutral-300 rounded bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-neutral-700 mb-1">Contact Phone</label>
+                  <input
+                    type="tel"
+                    required
+                    placeholder="+91 94440 98765"
+                    value={wardenPhoneInput}
+                    onChange={(e) => setWardenPhoneInput(e.target.value)}
+                    className="w-full p-2 border border-neutral-300 rounded bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-neutral-700 mb-1">Institutional Email</label>
+                  <input
+                    type="email"
+                    required
+                    placeholder="warden@dhaanish.in"
+                    value={wardenEmailInput}
+                    onChange={(e) => setWardenEmailInput(e.target.value)}
+                    className="w-full p-2 border border-neutral-300 rounded bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-neutral-700 mb-1">Set Login Password</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Enter password for Warden login"
+                    value={wardenPasswordInput}
+                    onChange={(e) => setWardenPasswordInput(e.target.value)}
+                    className="w-full p-2 border border-neutral-300 rounded bg-white"
+                  />
+                  <p className="text-[10px] text-neutral-500 mt-0.5">Used by assigned Warden to log in to the portal.</p>
+                </div>
               </div>
 
-              <div>
-                <label className="block font-semibold text-neutral-700 mb-1">Contact Phone</label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="+91 94433 11223"
-                  value={wardenPhoneInput}
-                  onChange={(e) => setWardenPhoneInput(e.target.value)}
-                  className="w-full p-2 border border-neutral-300 rounded"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-neutral-700 mb-1">Institutional Email</label>
-                <input
-                  type="email"
-                  required
-                  placeholder="warden@dhaanish.in"
-                  value={wardenEmailInput}
-                  onChange={(e) => setWardenEmailInput(e.target.value)}
-                  className="w-full p-2 border border-neutral-300 rounded"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-neutral-700 mb-1">Set Login Password</label>
-                <input
-                  type="password"
-                  required
-                  placeholder="Enter password for Warden login"
-                  value={wardenPasswordInput}
-                  onChange={(e) => setWardenPasswordInput(e.target.value)}
-                  className="w-full p-2 border border-neutral-300 rounded"
-                />
-                <p className="text-[10px] text-neutral-500 mt-0.5">Used by Warden to log in to the portal.</p>
-              </div>
-
-              <div className="pt-2 flex justify-end space-x-2">
+              <div className="pt-2 flex justify-end space-x-2 border-t border-neutral-200">
                 <button
                   type="button"
                   onClick={() => setShowWardenModal(false)}
@@ -510,13 +670,13 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 2: EDIT BED CAPACITY COUNT */}
+      {/* MODAL 2: EDIT BED CAPACITY COUNT & NUMBER OF FLOORS */}
       {showCapacityModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 text-xs font-sans">
           <div className="bg-white rounded-xl max-w-sm w-full p-6 shadow-2xl border border-neutral-300 space-y-4">
             <div className="flex justify-between items-center border-b border-neutral-200 pb-3">
               <h3 className="font-bold text-navy-900 text-sm">
-                Enter Bed Count for {editingBlockName}
+                Configure Capacity & Floors for {editingBlockName}
               </h3>
               <button onClick={() => setShowCapacityModal(false)} className="text-neutral-400 hover:text-neutral-800 font-bold">
                 <X className="w-5 h-5" />
@@ -525,19 +685,49 @@ export const AdminDashboard: React.FC = () => {
 
             <form onSubmit={handleSaveCapacity} className="space-y-3">
               <div>
-                <label className="block font-semibold text-neutral-700 mb-1">Total Bed Capacity</label>
+                <label className="block font-semibold text-neutral-700 mb-1">Total Bed Capacity Count</label>
                 <input
                   type="number"
                   required
-                  min={1}
-                  max={500}
+                  min={0}
+                  max={1000}
                   value={capacityInput}
                   onChange={(e) => setCapacityInput(Number(e.target.value))}
                   className="w-full p-2.5 border border-neutral-300 rounded text-sm font-mono font-bold text-navy-900 focus:ring-1 focus:ring-navy-600"
                 />
                 <p className="text-[10px] text-neutral-500 mt-1">
-                  Specify the total bed capacity count available in {editingBlockName}.
+                  Specify the maximum bed capacity limit available in {editingBlockName}.
                 </p>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-neutral-700 mb-1 flex items-center space-x-1">
+                  <Layers className="w-3.5 h-3.5 text-navy-700" />
+                  <span>Number of Floors</span>
+                </label>
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  max={20}
+                  value={floorsInput}
+                  onChange={(e) => setFloorsInput(Number(e.target.value))}
+                  className="w-full p-2.5 border border-neutral-300 rounded text-sm font-mono font-bold text-navy-900 focus:ring-1 focus:ring-navy-600"
+                />
+                <p className="text-[10px] text-neutral-500 mt-1">
+                  Specify the total number of residential floors in {editingBlockName}.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-neutral-700 mb-1">Block Description / Wing Name</label>
+                <input
+                  type="text"
+                  required
+                  value={descriptionInput}
+                  onChange={(e) => setDescriptionInput(e.target.value)}
+                  className="w-full p-2 border border-neutral-300 rounded text-xs text-neutral-800 focus:ring-1 focus:ring-navy-600"
+                />
               </div>
 
               <div className="pt-2 flex justify-end space-x-2">
@@ -552,7 +742,7 @@ export const AdminDashboard: React.FC = () => {
                   type="submit"
                   className="px-4 py-2 bg-navy-700 text-white rounded font-bold hover:bg-navy-800 shadow"
                 >
-                  Update Bed Count
+                  Update Block Configuration
                 </button>
               </div>
             </form>

@@ -4,50 +4,50 @@ export const initialBlocks: BlockInfo[] = [
   {
     name: 'Block A',
     status: 'Active',
-    capacity: 120,
-    occupied: 112,
-    floors: 4,
-    description: 'Boys Hostel Block A'
+    capacity: 0,
+    occupied: 0,
+    floors: 0,
+    description: 'Senior Boys Residence - Engineering Wing'
   },
   {
     name: 'Block B',
     status: 'Active',
-    capacity: 140,
-    occupied: 128,
-    floors: 4,
-    description: 'Boys Hostel Block B'
+    capacity: 0,
+    occupied: 0,
+    floors: 0,
+    description: 'Junior Boys Residence - First & Second Year'
   },
   {
     name: 'Block C',
     status: 'Active',
-    capacity: 100,
-    occupied: 94,
-    floors: 3,
-    description: 'Boys Hostel Block C'
+    capacity: 0,
+    occupied: 0,
+    floors: 0,
+    description: 'Boys Residence Block C - All Departments'
   },
   {
     name: 'Block D',
     status: 'Active',
-    capacity: 120,
-    occupied: 105,
-    floors: 4,
-    description: 'Boys Hostel Block D'
+    capacity: 0,
+    occupied: 0,
+    floors: 0,
+    description: 'Boys Residence Block D - Post Graduates & Final Year'
   },
   {
     name: 'Block E',
     status: 'Active',
-    capacity: 80,
-    occupied: 68,
-    floors: 3,
-    description: 'Boys Hostel Block E'
+    capacity: 0,
+    occupied: 0,
+    floors: 0,
+    description: 'Boys Residence Block E - International & Research Scholar Wing'
   },
   {
     name: 'Block F',
     status: 'Under Construction',
-    capacity: 160,
+    capacity: 0,
     occupied: 0,
-    floors: 5,
-    description: 'Boys Hostel Block F (Under Construction)'
+    floors: 0,
+    description: 'Executive Boys Hostel Complex (Target Completion: Q2 2027)'
   }
 ];
 
